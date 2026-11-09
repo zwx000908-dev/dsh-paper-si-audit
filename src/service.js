@@ -1,0 +1,364 @@
+import { readFile, writeFile, mkdir, readdir, realpath, rename, open, unlink } from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID, createHash } from 'node:crypto';
+import { parseDocument, documentByteLimit } from './parsers.js';
+import { auditDocuments } from './engine.js';
+import { validateProfile, defaultProfile } from './profiles.js';
+import { checkStoichiometry } from './stoichiometry.js';
+import { renderMarkdown, summarizeIssues } from './report.js';
+import { VERSION, HOST_TARGET } from './version.js';
+import { inspectVisuals, readImageTable as recognizeImageTable } from './image-tables.js';
+import { checkHrms } from './hrms.js';
+
+const ID = /^[a-zA-Z0-9_-]{1,100}$/;
+const STATES = new Set(['confirmed', 'reasonable_difference', 'extraction_error', 'insufficient', 'fixed_pending_recheck']);
+const hash = x => createHash('sha256').update(x).digest('hex');
+const within = (base, file) => { const r = path.relative(base, file); return r === '' || (!r.startsWith(`..${path.sep}`) && r !== '..' && !path.isAbsolute(r)); };
+const clean = (s, max = 2000) => { if (typeof s !== 'string' || !s.trim() || s.length > max) throw new Error('Expected nonempty bounded text'); return s.trim(); };
+const json = async p => JSON.parse(await readFile(p, 'utf8'));
+const safeID = id => { if (!ID.test(id ?? '')) throw new Error('Invalid identifier'); return id; };
+const md = value => String(value ?? '').replace(/[|]/g, '\\|').replace(/[\r\n]/g, ' ');
+const csv = value => { let s = String(value ?? ''); if (/^[\s]*[=+\-@]/.test(s)) s = `'${s}`; return `"${s.replace(/"/g, '""')}"`; };
+const DEFAULT_HRMS = Object.freeze({ formulaBasis: 'ambiguous', ppmTolerance: 5, mDaTolerance: null });
+function imageTableBlocks(table) {
+  const rows = table.rows ?? [], headers = rows[0]?.cells.map(c => c.text) ?? [];
+  return rows.map((row, i) => ({ id: `${table.id}-row-${i + 1}`, text: row.cells.map(c => c.text).join('\t'), locator: { ...table.source.locator, label: `${table.source.locator.label}; OCR table ${table.id} row ${i + 1}`, tableId: table.id, row: i + 1 }, metadata: { evidenceOrigin: 'image_table_ocr', assetId: table.assetId, originalSourceSha256: table.source.sourceSha256, rasterSha256: table.source.rasterSha256, visualReviewStatus: table.review.status, headerInferred: true, headerRow: i === 0, cells: row.cells.map((cell, j) => ({ column: j + 1, header: headers[j] ?? '', text: cell.text, originalOCRText: cell.originalOCRText ?? cell.text, bbox: cell.bbox, confidence: cell.confidence, precisionKnown: table.review.status === 'accepted' })) } }));
+}
+
+async function atomic(file, value) {
+  await mkdir(path.dirname(file), { recursive: true });
+  const temp = `${file}.${randomUUID()}.tmp`;
+  await writeFile(temp, JSON.stringify(value, null, 2), { encoding: 'utf8', flag: 'wx' });
+  await rename(temp, file);
+}
+
+export class AuditService {
+  constructor({ dataDir, allowedRoots = [], executionPath = 'core_api' } = {}) {
+    if (!dataDir || !path.isAbsolute(dataDir)) throw new Error('dataDir must be absolute');
+    this.dataDir = path.resolve(dataDir);
+    this.allowedRoots = allowedRoots.map(r => path.resolve(r));
+    if (!['core_api', 'harness_native_tools', 'local_workbench', 'cli'].includes(executionPath)) throw new Error('Unknown execution entrypoint');
+    this.executionPath = executionPath;
+  }
+  async init() {
+    await mkdir(path.join(this.dataDir, 'projects'), { recursive: true });
+    this.dataDir = await realpath(this.dataDir);
+    this.allowedRoots = await Promise.all(this.allowedRoots.map(r => realpath(r)));
+    return this;
+  }
+  dir(id) { return path.join(this.dataDir, 'projects', safeID(id)); }
+  async locked(id, fn) {
+    await mkdir(this.dir(id), { recursive: true });
+    const lock = path.join(this.dir(id), '.lock');
+    const deadline = Date.now() + 30000;
+    let handle;
+    while (!handle) {
+      try { handle = await open(lock, 'wx'); await handle.writeFile(JSON.stringify({ pid: process.pid, at: new Date().toISOString() })); }
+      catch (error) { if (error.code !== 'EEXIST' || Date.now() > deadline) throw new Error(`Project busy or stale lock; retry or inspect ${lock}`); await new Promise(r => setTimeout(r, 75)); }
+    }
+    try { return await fn(); } finally { await handle.close(); await unlink(lock); }
+  }
+  async createProject({ name, roots } = {}) {
+    await this.init();
+    const selected = roots?.length ? roots : this.allowedRoots;
+    if (!selected.length) throw new Error('Configure allowedRoots before selecting source directories');
+    const canonical = await Promise.all(selected.map(r => realpath(path.resolve(r))));
+    if (canonical.some(r => !this.allowedRoots.some(a => within(a, r)))) throw new Error('Project roots exceed configured allowedRoots');
+    const project = { id: randomUUID(), name: clean(name, 200), roots: canonical, createdAt: new Date().toISOString(), documents: [], runIds: [], profile: defaultProfile(), profileRevision: 1, hrmsOptions: { ...DEFAULT_HRMS }, hrmsRevision: 0, visualAssets: [], imageTableIds: [], activeImageTables: {}, visualRevision: 0 };
+    await atomic(path.join(this.dir(project.id), 'project.json'), project);
+    return project;
+  }
+  async getProject(projectId) { return json(path.join(this.dir(projectId), 'project.json')); }
+  async listProjects() {
+    await this.init();
+    const result = [];
+    for (const entry of await readdir(path.join(this.dataDir, 'projects'), { withFileTypes: true })) {
+      if (!entry.isDirectory() || !ID.test(entry.name)) continue;
+      try { const p = await this.getProject(entry.name); result.push({ id: p.id, name: p.name, createdAt: p.createdAt, documentCount: p.documents.length, latestRunId: p.runIds.at(-1) ?? null }); } catch { /* ignore incomplete creation */ }
+    }
+    return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async sourcePath(project, input) {
+    if (typeof input !== 'string' || !path.isAbsolute(input)) throw new Error('Source path must be absolute');
+    const target = await realpath(input);
+    const imports = path.join(this.dir(project.id), 'imports');
+    if (within(this.dataDir, target) && !within(imports, target)) throw new Error('Audit state files cannot be imported as sources');
+    if (!within(imports, target) && !project.roots.some(r => within(r, target))) throw new Error('Source is outside project roots');
+    if (!within(imports, target) && !this.allowedRoots.some(r => within(r, target))) throw new Error('Source is outside currently configured allowedRoots');
+    return target;
+  }
+  async addDocument({ projectId, filePath, role = 'main', displayName, replaceKey }) {
+    if (!['main', 'si', 'source'].includes(role)) throw new Error('Unknown document role');
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId);
+      const target = await this.sourcePath(p, filePath);
+      const document = await parseDocument({ filePath: target, role });
+      if (displayName) document.name = path.basename(clean(displayName, 200));
+      const imports = path.join(this.dir(projectId), 'imports');
+      if (!replaceKey && displayName && within(imports, target)) replaceKey = p.documents.find(d => d.name === document.name && d.role === role && within(imports, d.filePath))?.key;
+      if (replaceKey && !p.documents.some(d => d.key === replaceKey && d.role === role)) throw new Error('Replacement source does not exist with this role');
+      const key = hash(`${target}\0${role}`).slice(0, 24);
+      p.documents = p.documents.filter(d => d.key !== key && d.key !== replaceKey);
+      if (p.documents.length >= 64) throw new Error('MVP supports at most 64 source entries');
+      p.documents.push({ key, filePath: target, role, name: document.name, sha256: document.sha256, coverage: document.coverage });
+      await atomic(path.join(this.dir(projectId), 'project.json'), p);
+      return document;
+    });
+  }
+  async importDocument({ projectId, name, contentBase64, role = 'main', replaceKey }) {
+    const project = await this.getProject(projectId);
+    const filename = path.basename(clean(name, 200));
+    if (!/\.(?:txt|md|csv|json|docx|pdf|xlsx|png|jpg|jpeg|tif|tiff|webp|bmp)$/i.test(filename)) throw new Error('Unsupported file extension');
+    const limit = documentByteLimit(filename);
+    if (typeof contentBase64 !== 'string' || contentBase64.length > Math.ceil(limit / 3) * 4 || contentBase64.length % 4 || /[^A-Za-z0-9+/=]/.test(contentBase64)) throw new Error('Invalid or oversized base64 upload');
+    const padding = contentBase64.indexOf('=');
+    if (padding >= 0 && !/^={1,2}$/.test(contentBase64.slice(padding))) throw new Error('Invalid base64 padding');
+    const buffer = Buffer.from(contentBase64, 'base64');
+    if (buffer.length > limit) throw new Error(`Input limit is ${limit / 1024 / 1024} MiB for this format`);
+    const imports = path.join(this.dir(projectId), 'imports');
+    await mkdir(imports, { recursive: true });
+    const filePath = path.join(imports, `${randomUUID()}-${filename}`);
+    await writeFile(filePath, buffer, { flag: 'wx' });
+    return this.addDocument({ projectId, filePath, role, displayName: filename, replaceKey });
+  }
+  async setProfile({ projectId, profile }) {
+    const valid = validateProfile(profile);
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId);
+      p.profile = valid; p.profileRevision += 1;
+      await atomic(path.join(this.dir(projectId), 'project.json'), p);
+      return { profile: valid, revision: p.profileRevision };
+    });
+  }
+  async configureHrms({ projectId, options }) {
+    if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(k => !['formulaBasis', 'ppmTolerance', 'mDaTolerance'].includes(k))) throw new Error('Invalid HRMS configuration fields');
+    const valid = { ...DEFAULT_HRMS, ...options };
+    if (!['neutral', 'ion', 'ambiguous'].includes(valid.formulaBasis) || typeof valid.ppmTolerance !== 'number' || !Number.isFinite(valid.ppmTolerance) || valid.ppmTolerance <= 0 || valid.ppmTolerance > 10000 || (valid.mDaTolerance !== null && (typeof valid.mDaTolerance !== 'number' || !Number.isFinite(valid.mDaTolerance) || valid.mDaTolerance <= 0 || valid.mDaTolerance > 1000))) throw new Error('HRMS basis and bounded positive finite tolerances are required (ppm <= 10000; mDa <= 1000)');
+    checkHrms([], valid);
+    return this.locked(projectId, async () => { const p = await this.getProject(projectId); p.hrmsOptions = valid; p.hrmsRevision = (p.hrmsRevision ?? 0) + 1; await atomic(path.join(this.dir(projectId), 'project.json'), p); return { options: valid, revision: p.hrmsRevision, thresholdSource: 'user/software configuration; not journal requirements' }; });
+  }
+  async prepareVisuals({ projectId, documentKey, selection = {}, signal }) {
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId), source = p.documents.find(d => d.key === documentKey);
+      if (!source) throw new Error('Document key not found in project');
+      const filePath = await this.sourcePath(p, source.filePath);
+      const originalHash = hash(await readFile(filePath));
+      const documentId = `doc-${hash(`${originalHash}:${source.role}`).slice(0, 20)}`;
+      const outputDir = path.join(this.dir(projectId), 'visuals', documentKey);
+      const result = await inspectVisuals({ filePath, documentId, outputDir, selection, signal });
+      if (result.sourceSha256 !== originalHash) throw new Error('Source changed during visual extraction');
+      const ready = new Map(result.assets.map(a => [a.id, a]));
+      const candidates = new Map([...(result.candidates ?? []), ...result.assets].map(a => [a.id, a]));
+      const assets = [];
+      for (const candidate of candidates.values()) {
+        const raw = ready.get(candidate.id) ?? candidate;
+        const originKey = hash(JSON.stringify([documentKey, originalHash, candidate.id])).slice(0, 24);
+        const id = `asset-${hash(JSON.stringify([originKey, raw.sha256 ?? 'inventory'])).slice(0, 24)}`;
+        const locator = { ...raw.locator, label: raw.locator?.label ?? (raw.locator?.page ? `PDF page ${raw.locator.page}` : raw.locator?.part ?? 'Standalone image') };
+        const asset = { ...candidate, ...raw, id, originKey, documentKey, documentId, name: source.name, role: source.role, sourceSha256: originalHash, locator };
+        if (asset.path) {
+          const renderedPath = await realpath(asset.path); if (!within(await realpath(outputDir), renderedPath)) throw new Error('Visual extraction returned an out-of-project path');
+          const bytes = await readFile(renderedPath); if (hash(bytes) !== asset.sha256) throw new Error('Rendered asset hash mismatch');
+          const contentDir = path.join(this.dir(projectId), 'visuals', 'content'); await mkdir(contentDir, { recursive: true });
+          asset.path = path.join(contentDir, `${asset.sha256}.png`);
+          try { await writeFile(asset.path, bytes, { flag: 'wx' }); } catch (error) { if (error.code !== 'EEXIST') throw error; if (hash(await readFile(asset.path)) !== asset.sha256) throw new Error('Stored visual content hash mismatch'); }
+        }
+        assets.push(asset);
+      }
+      p.visualAssets ??= [];
+      p.activeVisuals ??= {};
+      for (const asset of assets) {
+        const prior = p.visualAssets.find(a => a.id === p.activeVisuals[asset.originKey]);
+        if (prior?.status === 'ready' && asset.status === 'unread') continue;
+        p.visualAssets = p.visualAssets.filter(a => a.id !== asset.id); p.visualAssets.push(asset); p.activeVisuals[asset.originKey] = asset.id;
+      }
+      await atomic(path.join(this.dir(projectId), 'project.json'), p);
+      return { source: { key: source.key, name: source.name, role: source.role, documentId, sha256: originalHash }, assets, coverage: result.coverage };
+    });
+  }
+  async listVisuals({ projectId }) {
+    const p = await this.getProject(projectId), assets = (p.visualAssets ?? []).map(a => ({ ...a, active: !p.activeVisuals || p.activeVisuals[a.originKey] === a.id }));
+    return { assets, coverage: { inventoried: assets.length, ready: assets.filter(a => a.status === 'ready').length, failed: assets.filter(a => a.status === 'failed').length, note: 'Prepared images are not yet verified tables; unselected figures and spectra are not read.' } };
+  }
+  async getVisualImage({ projectId, assetId }) {
+    const p = await this.getProject(projectId), asset = (p.visualAssets ?? []).find(a => a.id === assetId);
+    if (!asset || asset.status !== 'ready' || !asset.path) throw new Error('A rendered, registered visual asset is required');
+    const target = await realpath(asset.path);
+    if (!within(await realpath(path.join(this.dir(projectId), 'visuals')), target)) throw new Error('Visual asset escaped its project');
+    const data = await readFile(target);
+    if (data.length > 32 * 1024 * 1024 || hash(data) !== asset.sha256) throw new Error('Visual asset changed or exceeds image limits');
+    return { asset, data: new Uint8Array(data) };
+  }
+  async readImageTable({ projectId, assetId, crop, signal }) {
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId), { asset } = await this.getVisualImage({ projectId, assetId });
+      const tableId = `table-${randomUUID()}`;
+      const result = await recognizeImageTable({ imagePath: asset.path, outputDir: path.join(this.dir(projectId), 'tables', 'ocr'), tableId, crop, signal });
+      if (result.sourceSha256 !== asset.sha256) throw new Error('OCR used a different raster than the registered asset');
+      const table = { ...result, id: tableId, assetId, createdAt: new Date().toISOString(), source: { documentKey: asset.documentKey, documentId: asset.documentId, name: asset.name, role: asset.role, locator: asset.locator, sourceSha256: asset.sourceSha256, rasterSha256: asset.sha256 }, review: { status: 'needs_review', reason: 'OCR is provisional; compare the source image before accepting.' } };
+      if (!Array.isArray(table.rows) || table.rows.length > 3000) throw new Error('OCR table exceeds row bounds');
+      for (const row of table.rows) {
+        if (!Array.isArray(row.cells) || row.cells.length > 100) throw new Error('OCR table exceeds column bounds');
+        for (const c of row.cells) {
+          if (typeof c.text !== 'string' || c.text.length > 2000 || !c.bbox || ['x', 'y', 'width', 'height'].some(k => !Number.isFinite(c.bbox[k])) || c.bbox.x < 0 || c.bbox.y < 0 || c.bbox.width < 0 || c.bbox.height < 0 || c.bbox.x + c.bbox.width > asset.imageWidth + 1 || c.bbox.y + c.bbox.height > asset.imageHeight + 1) throw new Error('OCR table exceeds cell or coordinate bounds');
+        }
+      }
+      await atomic(path.join(this.dir(projectId), 'tables', `${safeID(tableId)}.json`), table);
+      p.imageTableIds ??= []; p.imageTableIds.push(tableId); p.activeImageTables ??= {};
+      p.activeImageTables[`${asset.originKey}:${JSON.stringify(crop ? [crop.x, crop.y, crop.width, crop.height] : null)}`] = tableId;
+      p.visualRevision = (p.visualRevision ?? 0) + 1;
+      await atomic(path.join(this.dir(projectId), 'project.json'), p);
+      return table;
+    });
+  }
+  async listImageTables({ projectId }) {
+    const p = await this.getProject(projectId), active = new Set(Object.values(p.activeImageTables ?? {})), tables = [];
+    for (const id of p.imageTableIds ?? []) { const t = await json(path.join(this.dir(projectId), 'tables', `${safeID(id)}.json`)); tables.push({ id, assetId: t.assetId, source: t.source, provider: t.provider, status: t.status, review: t.review, active: active.has(id), rows: t.rows.length, rowPreview: t.rows.slice(0, 3) }); }
+    return { tables };
+  }
+  async getImageTable({ projectId, tableId, offset = 0, limit = 30 }) {
+    if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('Invalid table row page (offset >= 0; limit 1-100)');
+    const p = await this.getProject(projectId);
+    if (!(p.imageTableIds ?? []).includes(tableId)) throw new Error('Table not found in project');
+    const table = await json(path.join(this.dir(projectId), 'tables', `${safeID(tableId)}.json`));
+    return { id: table.id, assetId: table.assetId, source: table.source, provider: table.provider, status: table.status, review: table.review, reviewHistory: table.reviewHistory ?? [], rowCount: table.rows.length, items: table.rows.slice(offset, offset + limit), offset, limit, nextOffset: offset + limit < table.rows.length ? offset + limit : null };
+  }
+  async reviewImageTable({ projectId, tableId, status, reason, corrections = [] }) {
+    if (!['accepted', 'rejected', 'needs_review'].includes(status)) throw new Error('Invalid table review state');
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId);
+      if (!(p.imageTableIds ?? []).includes(tableId)) throw new Error('Table not found in project');
+      const file = path.join(this.dir(projectId), 'tables', `${safeID(tableId)}.json`), table = await json(file);
+      if (status === 'accepted' && (table.status === 'failed' || !table.rows.length)) throw new Error('Failed or empty OCR tables cannot be accepted');
+      if (!Array.isArray(corrections) || corrections.length > 1000) throw new Error('Table corrections must be a bounded array');
+      const corrected = [];
+      for (const c of corrections) {
+        if (!c || Object.keys(c).some(k => !['row', 'column', 'text'].includes(k)) || !Number.isInteger(c.row) || !Number.isInteger(c.column) || c.row < 1 || c.column < 1 || typeof c.text !== 'string' || c.text.length > 2000) throw new Error('Invalid table cell correction');
+        const cell = table.rows[c.row - 1]?.cells[c.column - 1]; if (!cell) throw new Error('Corrected cell does not exist');
+        corrected.push({ row: c.row, column: c.column, before: cell.text, after: c.text }); cell.originalOCRText ??= cell.text; cell.text = c.text;
+      }
+      const record = { id: randomUUID(), at: new Date().toISOString(), status, reason: clean(reason), corrections: corrected };
+      table.review = record; table.reviewHistory = [...(table.reviewHistory ?? []), record];
+      await atomic(file, table); p.visualRevision = (p.visualRevision ?? 0) + 1; await atomic(path.join(this.dir(projectId), 'project.json'), p); return record;
+    });
+  }
+  async runAudit({ projectId, executionEvidence }) {
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId);
+      if (!p.documents.length) throw new Error('Import documents before running an audit');
+      const documents = [];
+      for (const source of p.documents) {
+        try { const target = await this.sourcePath(p, source.filePath); const document = await parseDocument({ filePath: target, role: source.role }); document.name = source.name; source.sha256 = document.sha256; source.coverage = document.coverage; documents.push(document); }
+        catch (error) { documents.push({ id: `failed-${source.key}`, name: source.name, role: source.role, format: path.extname(source.name), sha256: null, blocks: [], coverage: { status: 'failed', totalUnits: 1, parsedUnits: 0, warnings: [String(error.message)] } }); }
+      }
+      const visualCoverage = { activeTables: 0, provisionalTables: 0, acceptedTables: 0, rejectedTables: 0, staleTables: [], failedTables: [] };
+      const imageTables = [];
+      for (const id of Object.values(p.activeImageTables ?? {})) {
+        const table = await json(path.join(this.dir(projectId), 'tables', `${safeID(id)}.json`)); imageTables.push(table); visualCoverage.activeTables++;
+        const source = documents.find(d => d.id === table.source.documentId && d.sha256 === table.source.sourceSha256);
+        if (!source) { visualCoverage.staleTables.push(id); continue; }
+        if (table.review.status === 'rejected') { visualCoverage.rejectedTables++; continue; }
+        if (table.status === 'failed' || !table.rows.length) { visualCoverage.failedTables.push(id); continue; }
+        table.review.status === 'accepted' ? visualCoverage.acceptedTables++ : visualCoverage.provisionalTables++;
+        documents.push({ id: `visualdoc-${hash(id).slice(0, 20)}`, name: `${table.source.name} [OCR ${id}]`, role: table.source.role, format: 'image_table', sha256: table.source.rasterSha256, originalSourceSha256: table.source.sourceSha256, evidenceOrigin: 'image_table_ocr', blocks: imageTableBlocks(table), coverage: { status: table.review.status === 'accepted' ? 'complete' : 'partial', totalUnits: table.rows.length, parsedUnits: table.rows.length, warnings: [table.review.status === 'accepted' ? 'Human accepted the transcription; this does not validate the scientific result or original measurement.' : 'Unreviewed OCR; image readings can be wrong. Source image hash and cell boxes are retained.'] } });
+      }
+      if (documents.reduce((n, d) => n + d.blocks.reduce((m, b) => m + b.text.length, 0), 0) > 8 * 1024 * 1024) throw new Error('MVP text budget exceeded (8 Mi characters); split the project');
+      const result = auditDocuments(documents, p.profile);
+      const stoichiometry = checkStoichiometry(documents);
+      const hrms = checkHrms(documents, p.hrmsOptions ?? DEFAULT_HRMS);
+      const rank = i => ({ high: 0, medium: 1, low: 2 }[i.severity] ?? 3) * 10 + ({ data: 0, semantic: 1, alignment: 2, coverage: 3, format: 4 }[i.type] ?? 5);
+      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues].sort((a, b) => rank(a) - rank(b));
+      const execution = { entryPoint: this.executionPath, recordedBy: 'entrypoint-declared; confirm native calls in host logs', ...(this.executionPath === 'harness_native_tools' && executionEvidence ? { toolName: 'paper_audit_run', toolCallId: typeof executionEvidence.toolCallId === 'string' ? executionEvidence.toolCallId : null } : {}) };
+      const coverage = { ...result.coverage, hrms: hrms.coverage, imageTables: visualCoverage, stoichiometry: stoichiometry.coverage, semanticStatus: 'not_run', missingRoles: ['main', 'si'].filter(role => !documents.some(d => d.role === role)), documents: documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage })) };
+      if (hrms.coverage.calculatedRecords + hrms.coverage.ambiguousRecords > 0) { coverage.notPerformed = coverage.notPerformed.filter(s => !s.includes('HRMS 分子式精确质量复算')); coverage.completedChecks.push('hrms_conditional_exact_mass_recalculation'); }
+      if (hrms.coverage.ambiguousRecords) coverage.incompleteChecks.push('hrms_formula_basis_confirmation');
+      if (hrms.coverage.unsupportedRecords) coverage.incompleteChecks.push('hrms_expression_coverage');
+      if (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked')) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
+      if (visualCoverage.activeTables) { coverage.completedChecks.push('selected_image_table_ocr'); if (visualCoverage.provisionalTables || visualCoverage.staleTables.length || visualCoverage.failedTables.length) coverage.incompleteChecks.push('image_table_transcription_review'); }
+      const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(p.profile), profileRevision: p.profileRevision, hrmsOptions: structuredClone(p.hrmsOptions ?? DEFAULT_HRMS), hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
+      run.status = documents.some(d => d.coverage.status !== 'complete') || run.coverage.missingRoles.length || run.coverage.truncated ? 'partial' : 'completed_with_limited_scope';
+      if (run.previousRunId) {
+        const previous = await this.getRun({ projectId, runId: run.previousRunId });
+        const currentIDs = new Set(run.issues.map(i => i.id));
+        run.changes = { currentIssues: run.issues.length, priorIssuesNotReproduced: previous.issues.filter(i => !currentIDs.has(i.id)).map(i => ({ id: i.id, title: i.title, state: 'needs_revalidation' })), note: 'Issue disappearance can reflect changed evidence or matching; it is not automatic closure.' };
+      }
+      await atomic(path.join(this.dir(projectId), 'runs', `${run.id}.json`), run);
+      p.runIds.push(run.id);
+      await atomic(path.join(this.dir(projectId), 'project.json'), p);
+      return { ...run, reviews: [] };
+    });
+  }
+  async extras(projectId, type, runId) {
+    try { return await json(path.join(this.dir(projectId), type, `${safeID(runId)}.json`)); } catch (e) { if (e.code === 'ENOENT') return []; throw e; }
+  }
+  async getRun({ projectId, runId } = {}) {
+    const p = await this.getProject(projectId);
+    const selected = runId ?? p.runIds.at(-1);
+    if (!selected || !p.runIds.includes(selected)) throw new Error('Run not found in project');
+    const run = await json(path.join(this.dir(projectId), 'runs', `${safeID(selected)}.json`));
+    const semantic = await this.extras(projectId, 'semantic', selected);
+    const reviews = await this.extras(projectId, 'reviews', selected);
+    const signature = docs => docs.map(d => `${d.name}\0${d.role}\0${d.sha256}`).sort().join('\n');
+    const issues = [...run.issues, ...semantic];
+    const physicalDocs = run.documents.filter(d => d.format !== 'image_table');
+    return { ...run, execution: run.execution ?? { entryPoint: 'legacy_unknown', recordedBy: 'not recorded in original run' }, issues, issueSummary: summarizeIssues(issues), reviews, coverage: { ...run.coverage, semanticStatus: semantic.length ? 'candidates_submitted_not_exhaustive' : 'not_run' }, profileChangedSinceRun: p.profileRevision !== run.profileRevision, hrmsSettingsChangedSinceRun: (p.hrmsRevision ?? 0) !== (run.hrmsRevision ?? 0), imageTablesChangedSinceRun: (p.visualRevision ?? 0) !== (run.visualRevision ?? 0), sourcesChangedSinceRun: signature(p.documents) !== signature(physicalDocs) };
+  }
+  evidenceFrom(run, evidenceId) {
+    const fact = run.facts.find(f => f.id === evidenceId);
+    const blockId = fact?.blockId ?? evidenceId;
+    for (const document of run.documents) {
+      const block = document.blocks.find(b => b.id === blockId);
+      if (block) return { document: { id: document.id, name: document.name, role: document.role, sha256: document.sha256 }, block, fact: fact ?? null };
+    }
+    throw new Error('Evidence does not exist in this run');
+  }
+  async getEvidence({ projectId, runId, evidenceId }) { return this.evidenceFrom(await this.getRun({ projectId, runId }), evidenceId); }
+  async reviewIssue({ projectId, runId, issueId, status, reason }) {
+    if (!STATES.has(status)) throw new Error('Unsupported review state; direct closure requires a new audit and human revalidation');
+    return this.locked(projectId, async () => {
+      const run = await this.getRun({ projectId, runId });
+      if (!run.issues.some(i => i.id === issueId)) throw new Error('Issue not found');
+      const record = { id: randomUUID(), issueId, status, reason: clean(reason), at: new Date().toISOString() };
+      await atomic(path.join(this.dir(projectId), 'reviews', `${run.id}.json`), [...run.reviews, record]);
+      return record;
+    });
+  }
+  async submitSemantic({ projectId, runId, candidates }) {
+    if (!Array.isArray(candidates) || candidates.length < 1 || candidates.length > 30) throw new Error('Submit 1–30 bounded candidates');
+    return this.locked(projectId, async () => {
+      const run = await this.getRun({ projectId, runId });
+      const proposed = candidates.map(c => {
+        if (!['high', 'medium', 'low'].includes(c.severity)) throw new Error('Invalid severity');
+        if (!Array.isArray(c.evidence) || !c.evidence.length || c.evidence.length > 10) throw new Error('Candidate needs 1–10 source quotations');
+        const citations = c.evidence.map(e => {
+          const { block } = this.evidenceFrom(run, e.blockId);
+          clean(e.quote, 5000);
+          const quote = e.quote;
+          const start = e.start ?? block.text.indexOf(quote);
+          if (!Number.isInteger(start) || start < 0 || block.text.slice(start, start + quote.length) !== quote) throw new Error('Quotation is not an exact source substring');
+          if (e.start === undefined && block.text.indexOf(quote, start + 1) !== -1) throw new Error('Ambiguous quotation; specify start offset');
+          return { blockId: block.id, quote, start, end: start + quote.length };
+        });
+        const title = clean(c.title, 300), description = clean(c.description, 6000);
+        return { id: `semantic-${hash(JSON.stringify([title, citations])).slice(0, 24)}`, type: 'semantic', severity: c.severity, evidenceStatus: 'needs_review', status: 'open', title, description, evidenceIds: citations.map(e => e.blockId), citations, suggestion: c.suggestion ? clean(c.suggestion, 2000) : null, note: 'Exact quotation validation does not validate the scientific inference.' };
+      });
+      const existing = await this.extras(projectId, 'semantic', run.id);
+      const ids = new Set(existing.map(i => i.id));
+      const added = proposed.filter(i => { if (ids.has(i.id)) return false; ids.add(i.id); return true; });
+      await atomic(path.join(this.dir(projectId), 'semantic', `${run.id}.json`), [...existing, ...added]);
+      return { accepted: added.length, issues: added, semanticCoverage: 'not_exhaustive' };
+    });
+  }
+  async exportReport({ projectId, runId, format = 'md' }) {
+    const run = await this.getRun({ projectId, runId });
+    if (!['md', 'json', 'csv'].includes(format)) throw new Error('Unknown report format');
+    let content;
+    if (format === 'json') content = JSON.stringify(run, null, 2);
+    else if (format === 'csv') content = [['id', 'type', 'severity', 'evidence_status', 'title', 'description', 'evidence', 'latest_review', 'reason'], ...run.issues.map(i => { const r = run.reviews.filter(r => r.issueId === i.id).at(-1); return [i.id, i.type, i.severity, i.evidenceStatus, i.title, i.description, i.evidenceIds.join(';'), r?.status, r?.reason]; })].map(row => row.map(csv).join(',')).join('\r\n');
+    else content = renderMarkdown(run, this.evidenceFrom.bind(this));
+    const file = path.join(this.dir(projectId), 'exports', `${run.id}-${randomUUID().slice(0, 8)}.${format}`);
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
+    return { path: file, content, format };
+  }
+}

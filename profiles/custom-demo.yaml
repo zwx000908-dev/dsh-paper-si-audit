@@ -1,0 +1,34 @@
+# 用户自定义演示；不是任何期刊的通用或正式要求。
+schema_version: 1
+profile:
+  id: custom-demo
+  name: 用户自定义演示（非期刊标准）
+  version: 1.0.0
+  source_type: user_defined
+  journal: null
+rules:
+  - id: h1-shift
+    field: nmr.h1.chemical_shift
+    scope: si.characterization
+    requirement: user_preference
+    number_format: {mode: decimal_places, digits: 3, rounding: half_up}
+    expected_unit: ppm
+    action: preview_only
+  - id: c13-shift
+    field: nmr.c13.chemical_shift
+    scope: si.characterization
+    requirement: user_preference
+    number_format: {mode: decimal_places, digits: 4, rounding: half_up}
+    expected_unit: ppm
+    action: preview_only
+  - id: coupling
+    field: nmr.coupling_constant
+    scope: si.characterization
+    number_format: {mode: decimal_places, digits: 1, rounding: half_up}
+    expected_unit: Hz
+    action: preview_only
+  - id: hrms
+    field: hrms.mass_to_charge
+    scope: si.characterization
+    number_format: {mode: decimal_places, digits: 4, rounding: half_up}
+    action: preview_only

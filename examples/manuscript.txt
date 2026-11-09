@@ -1,0 +1,5 @@
+Synthetic demonstration only. These are deliberately inconsistent test records, not research data.
+
+compound=3a; experiment=E1; batch=B1; isolated yield=92%; ee=98%; scale=0.20 mmol; time=1 h; temperature=25 °C
+compound=3b; experiment=E2; batch=B2; isolated yield=94.6%; ee=96%; time=60 min
+compound=3c; experiment=E3; batch=B3; isolated yield=90%

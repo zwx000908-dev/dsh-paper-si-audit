@@ -1,0 +1,5 @@
+- insert:
+    - id: paper-si-audit
+      name: dsh-paper-si-audit
+      config:
+        allowedRoots: []

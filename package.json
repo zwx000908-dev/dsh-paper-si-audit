@@ -1,0 +1,91 @@
+{
+  "name": "dsh-paper-si-audit",
+  "version": "0.2.0",
+  "description": "Evidence-grounded manuscript and supplementary information audit for DeepSeek Harness",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zwx000908-dev/paper-si-audit.git"
+  },
+  "homepage": "https://github.com/zwx000908-dev/paper-si-audit#readme",
+  "bugs": {
+    "url": "https://github.com/zwx000908-dev/paper-si-audit/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "manuscript",
+    "supplementary-information",
+    "hrms",
+    "ocr"
+  ],
+  "type": "module",
+  "main": "src/plugin.js",
+  "exports": {
+    ".": "./src/plugin.js",
+    "./core": "./src/service.js",
+    "./icon": "./icon.svg",
+    "./locale/en.json": "./locale/en.json",
+    "./locale/zh.json": "./locale/zh.json"
+  },
+  "bin": {
+    "paper-si-audit": "./src/cli.js"
+  },
+  "files": [
+    "src",
+    "profiles",
+    "icon.svg",
+    "locale",
+    "skills",
+    "cordis.patch.yml",
+    "README.md",
+    "CHANGELOG.md",
+    "docs",
+    "examples",
+    "scripts/demo.js",
+    "设计方案.md",
+    "scripts/doctor-harness.js"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "demo": "node scripts/demo.js",
+    "check": "node --check src/service.js && node --check src/plugin.js && node --check src/image-tables.js && node --check src/hrms.js",
+    "test:harness": "node scripts/harness-smoke.js",
+    "doctor": "node scripts/doctor-harness.js",
+    "pack:verify": "node scripts/pack-release.js"
+  },
+  "engines": {
+    "node": ">=24.9.0",
+    "dsh": "0.2.2-rc.1"
+  },
+  "license": "MIT",
+  "icon": "./icon.svg",
+  "dependencies": {
+    "@napi-rs/canvas": "1.1.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "csv-parse": "7.0.3",
+    "decimal.js": "10.6.0",
+    "exceljs": "4.4.0",
+    "fast-xml-parser": "5.12.0",
+    "fflate": "0.8.3",
+    "pdfjs-dist": "6.5.438",
+    "tesseract.js": "7.0.0",
+    "utif": "3.1.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-system-prompt": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "3.19.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "3.19.0"
+  }
+}

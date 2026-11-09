@@ -1,0 +1,11 @@
+node_modules/
+.npm-cache/
+.audit-data/
+test-output/
+*.tgz
+dist/
+outputs/
+paper/
+.env
+.env.*
+*.log

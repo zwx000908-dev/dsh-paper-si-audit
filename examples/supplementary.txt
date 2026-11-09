@@ -1,0 +1,7 @@
+Synthetic supplementary information. Deliberately inconsistent demonstration records.
+
+compound=3a; experiment=E1; batch=B1; isolated yield=80%; er=98:2; scale=0.20 mmol; time=60 min; temperature=298.15 K
+compound=3b; experiment=E2; batch=B2; isolated yield=95%; er=98:2; time=1 h
+compound=3c; experiment=E4; batch=B4; isolated yield=85%
+
+Compound 3a: 1H NMR (400 MHz, CDCl3) δ 7.26 (d, J = 8.55 Hz, 2H), 3.123 (s, 3H); 13C NMR (101 MHz, CDCl3) δ 128.12345, 55.1; HRMS (ESI) calcd for C10H13O [M+H]+ 149.0966; found 149.0967.
