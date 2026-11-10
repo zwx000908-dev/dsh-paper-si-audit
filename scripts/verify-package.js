@@ -47,7 +47,7 @@ for (const [member, data] of contents) {
 }
 const plugin = await import(pathToFileURL(path.join(unpacked, 'package/src/plugin.js')));
 const nativeTools = plugin.createToolDefinitions({});
-assert.equal(nativeTools.length, 39);
+assert.equal(nativeTools.length, 41);
 assert.ok(nativeTools.some(tool => tool.name === 'paper_audit_prepare_image_audit'));
 for (const member of ['src/nmr.js', 'src/image-duplicates.js', 'docs/NMR-AND-IMAGES.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
 for (const member of ['src/compounds.js', 'src/panels.js', 'src/spectrum-check.js', 'src/experimental-math.js', 'src/evaluation.js', 'src/scientific-config.js', 'docs/SCIENTIFIC-WORKFLOW.md', 'benchmarks/README.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
@@ -70,3 +70,5 @@ await writeFile(path.join(root, `dist/SHA256SUMS-${manifest.version}.txt`), `${c
 await writeFile(path.join(root, 'dist/package-metadata.json'), JSON.stringify(record, null, 2));
 await writeFile(path.join(root, 'dist/SHA256SUMS.txt'), `${checksum}  ${path.basename(archive)}\n`);
 console.log(JSON.stringify(record, null, 2));
+
+for (const member of ['src/image-rules.js', 'src/review-groups.js', 'benchmarks/biofors-external.json', 'scripts/evaluate-external.js', 'scripts/fetch-biofors.py', 'docs/REVIEW-0.7.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);

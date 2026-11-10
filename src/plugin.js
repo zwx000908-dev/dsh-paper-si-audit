@@ -36,6 +36,8 @@ Use paper_audit_image_tables without tableId to list tables, then with tableId a
 Gross amount/equivalent inconsistencies remain needs_review and do not determine whether an amount, equivalent, scale, or procedure text should be corrected.
 Always disclose failed/partial parsing, unsupported checks, and semantic-review scope. Zero issues does not establish correctness.
 Use paper_audit_review only for a user's stated review decision and reason; do not close an issue merely because a suggestion was made.
+Use paper_audit_review_groups to prioritize shared source dependencies; retain local exceptions and rerun after a user interpretation. Never bulk-close a group.
+Image types are explicit user classifications; unknown, spectra, charts, tables, schemes and mixed pages default to exact-only. Non-matches are not negative evidence for unimplemented content comparisons. External BioFors testing exposes poor real-image duplicate sensitivity; disclose it.
 This release has no web review panel or local HTTP server. Use the native tools and exported evidence reports within Harness. It does not provide automatic raw-spectrum validation or Word rewriting.`;
 
 const id = (description, required = true) => ({ type: 'string', required, description });
@@ -111,6 +113,16 @@ export function createToolDefinitions(service, bridge = {}) {
   });
 
   return [
+    tool('paper_audit_set_image_type', 'Save an explicit user image classification bound to the current source and raster hashes. Unknown/mixed pages and diagrams default to exact-only matching. Never infer a confirmed type from filename/OCR. Rerun after changing type.', {
+      projectId: id('Project ID.'), assetId: id('Active registered image ID.'), type: id('unknown, mixed_page, spectrum, chart, table, reaction_scheme, microscopy, blot or photograph.'), reason: id('Explicit user classification and basis.'),
+    }, args => service.setImageType(args)),
+    tool('paper_audit_review_groups', 'Read review groups organized by a shared method source, local formula basis, template rule or exact image pair. Groups retain every issue and local exception; grouping does not confirm cause or bulk-close issues. Read member citations before a user interpretation.', {
+      projectId: id('Project ID.'), runId: optionalId('Run ID.'), groupId: optionalId('Optional group ID for paged member records.'), ...paging,
+    }, async args => {
+      const run = await service.getRun(args), data = run.reviewGroups ?? { groups: [] };
+      if (args.groupId) { const g = data.groups.find(g => g.id === args.groupId); if (!g) throw new Error('Unknown review group'); const { members, citations, issueIds, recordIds, ...meta } = g; return { runId: run.id, ...meta, ...paginate(issueIds.map(issueId => ({ issueId, member: members.find(m => m.recordId === issueId), citations: run.issues.find(i => i.id === issueId)?.citations ?? [], imageEvidence: run.issues.find(i => i.id === issueId)?.imageEvidence ?? [] })), args) }; }
+      return { runId: run.id, note: data.note, groupCount: data.groupCount, groupedIssueCount: data.groupedIssueCount, ungroupedIssueCount: data.ungroupedIssueIds?.length, ...paginate(data.groups.map(({ members, citations, issueIds, recordIds, ...g }) => ({ ...g, memberCount: members.length })), args) };
+    }),
     tool('paper_audit_experiment_context', 'Save only an explicit user interpretation of a record or referenced general method: limiting reagent amount, product stoichiometric factor or neutral formula. Exact relevant citations and reason required. Does not let model assumptions become human decisions. Source changes invalidate the interpretation; rerun after saving.', {
       projectId: id('Project ID.'), runId: id('Latest run ID.'), contextJson: id('JSON scope=record with recordId or scope=method with documentId/methodLabel; optional limitingAmountMmol, stoichiometricFactor, neutralFormula(record only), reason, citations [{blockId,start,end,quote}].'),
     }, args => service.setExperimentContext({ projectId: args.projectId, runId: args.runId, context: JSON.parse(args.contextJson) })),

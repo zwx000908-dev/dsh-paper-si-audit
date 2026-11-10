@@ -1,3 +1,5 @@
+import { IMAGE_TYPES, IMAGE_RULE_VERSION } from './image-rules.js';
+import { buildReviewGroups } from './review-groups.js';
 import { readFile, writeFile, mkdir, readdir, realpath, rename, open, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
@@ -276,6 +278,7 @@ export class AuditService {
         const prior = p.visualAssets.find(a => a.id === p.activeVisuals[asset.originKey]);
         if (prior?.status === 'ready' && asset.status === 'unread') continue;
         if (prior?.id !== asset.id || prior?.status !== asset.status) visualChanged = true;
+        if (prior?.id === asset.id && prior.sha256 === asset.sha256 && prior.sourceSha256 === asset.sourceSha256 && prior.imageType) asset.imageType = prior.imageType;
         p.visualAssets = p.visualAssets.filter(a => a.id !== asset.id); p.visualAssets.push(asset); p.activeVisuals[asset.originKey] = asset.id;
       }
       await atomic(path.join(this.dir(projectId), 'project.json'), p);
@@ -391,12 +394,12 @@ export class AuditService {
       const cross = checkCrossReferences(documents, result.facts);
       const activeAssets = (p.visualAssets ?? []).filter(a => !p.activeVisuals || p.activeVisuals[a.originKey] === a.id);
       const currentAssets = activeAssets.filter(a => documents.some(d => d.id === a.documentId && d.sha256 === a.sourceSha256));
-      const imageSignature = hash(JSON.stringify([currentAssets.map(a => [a.id, a.sha256, a.status]), scientificOptions]));
+      const imageSignature = hash(JSON.stringify([IMAGE_RULE_VERSION, currentAssets.map(a => [a.id, a.sha256, a.status, a.imageType]), scientificOptions]));
       const previousProgress = p.duplicateProgress?.signature === imageSignature ? p.duplicateProgress : null;
       const cachedRun = previousProgress?.runId ? await json(path.join(this.dir(projectId), 'runs', `${safeID(previousProgress.runId)}.json`)) : null;
       const cacheDir = path.join(this.dir(projectId), 'image-features-v1');
       const cache = { get: async key => { try { const c = await json(path.join(cacheDir, `${key}.json`)); return c.variants && c.patches ? c : null; } catch { return null; } }, set: async (key, value) => atomic(path.join(cacheDir, `${key}.json`), value) };
-      const duplicateOptions = { maxAssets: scientificOptions.maxImageAssets, pairBudget: scientificOptions.imagePairBudget, pairOffset: previousProgress ? previousProgress.nextPairOffset ?? previousProgress.totalEligiblePairs : 0, imageRmse: scientificOptions.imageRmse, localImageRmse: scientificOptions.localImageRmse, localImages: scientificOptions.localImages, cache };
+      const duplicateOptions = { maxAssets: scientificOptions.maxImageAssets, pairBudget: scientificOptions.imagePairBudget, pairOffset: previousProgress ? previousProgress.nextPairOffset ?? previousProgress.totalEligiblePairs : 0, imageRmse: scientificOptions.imageRmse, localImageRmse: scientificOptions.localImageRmse, localImages: scientificOptions.localImages, imageTypeRules: scientificOptions.imageTypeRules, cache };
       let duplicates = await checkImageDuplicates(currentAssets, async asset => (await this.getVisualImage({ projectId, assetId: asset.id })).data, duplicateOptions);
       // A decoder failure changes the eligible pair order. Never resume at an old offset in a different ordering.
       let canReuse = !!cachedRun && JSON.stringify(previousProgress.skipped) === JSON.stringify(duplicates.coverage.skipped);
@@ -432,6 +435,7 @@ export class AuditService {
       if (nmr.coverage.comparedRecords) coverage.completedChecks.push('reported_nmr_formula_count_comparison');
       if (nmr.coverage.insufficientRecords || nmr.coverage.ambiguousRecords) coverage.incompleteChecks.push('nmr_formula_association_or_count');
       if (duplicates.coverage.checkedAssets) coverage.completedChecks.push('prepared_image_duplicate_comparison');
+      if (duplicates.coverage.exactOnlyAssetIds.length) coverage.incompleteChecks.push('nonexact_image_content_requires_review');
       if (duplicates.coverage.uninventoriedDocuments.length || duplicates.coverage.skipped.length || duplicates.coverage.staleAssets.length || duplicates.coverage.truncatedAssets || duplicates.coverage.nextPairOffset !== null) coverage.incompleteChecks.push('image_duplicate_source_coverage');
       if (hrms.coverage.calculatedRecords + hrms.coverage.ambiguousRecords > 0) { coverage.notPerformed = coverage.notPerformed.filter(s => !s.includes('HRMS 分子式精确质量复算')); coverage.completedChecks.push('hrms_conditional_exact_mass_recalculation'); }
       if (hrms.coverage.ambiguousRecords) coverage.incompleteChecks.push('hrms_formula_basis_confirmation');
@@ -439,7 +443,8 @@ export class AuditService {
       if (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked')) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
       if (visualCoverage.activeTables) { coverage.completedChecks.push('selected_image_table_ocr'); if (visualCoverage.provisionalTables || visualCoverage.staleTables.length || visualCoverage.failedTables.length) coverage.incompleteChecks.push('image_table_transcription_review'); }
       const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(p.profile), profileRevision: p.profileRevision, hrmsOptions: structuredClone(p.hrmsOptions ?? DEFAULT_HRMS), hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
-      run.crossReferences = cross; run.experimentalProseRecords = prose.records;
+      run.crossReferences = cross; run.experimentalProseRecords = prose.records; run.experimentalMethods = prose.methods;
+      run.reviewGroups = buildReviewGroups(run);
       run.materialReadings = await this.getMaterialReadings({ projectId });
       run.materialReadings = run.materialReadings.filter(r => documents.some(d => d.id === r.source.documentId && d.sha256 === r.source.sourceSha256));
       coverage.materialOCR = { readings: run.materialReadings.length, failed: run.materialReadings.filter(r => r.status === "failed").length, provisional: run.materialReadings.filter(r => r.status !== "failed").length, note: "Provisional page/image text only; not automatic table, spectrum, structure or semantic verification." };
@@ -468,6 +473,20 @@ export class AuditService {
       p.duplicateProgress = { signature: imageSignature, runId: run.id, nextPairOffset: duplicates.coverage.nextPairOffset, totalEligiblePairs: duplicates.coverage.totalEligiblePairs, skipped: duplicates.coverage.skipped };
       await atomic(path.join(this.dir(projectId), 'project.json'), p);
       return { ...run, reviews: [] };
+    });
+  }
+  async setImageType({ projectId, assetId, type, reason }) {
+    if (!IMAGE_TYPES.includes(type) || typeof reason !== 'string' || !reason.trim() || reason.length > 4000) throw new Error('Valid image type and explicit user reason required');
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId), asset = p.visualAssets?.find(a => a.id === assetId);
+      if (!asset || (p.activeVisuals && p.activeVisuals[asset.originKey] !== asset.id)) throw new Error('Active registered image required');
+      await this.getVisualImage({ projectId, assetId });
+      const source = p.documents.find(d => d.key === asset.documentKey);
+      if (!source || hash(await readFile(await this.sourcePath(p, source.filePath))) !== asset.sourceSha256) throw new Error('Source changed; prepare current image before classification');
+      const decision = { id: randomUUID(), assetId, type, reason, origin: 'explicit_user', sourceSha256: asset.sourceSha256, rasterSha256: asset.sha256, createdAt: new Date().toISOString() };
+      p.imageTypeDecisions ??= []; p.imageTypeDecisions.push(decision); asset.imageType = decision;
+      p.scientificRevision = (p.scientificRevision ?? 0) + 1;
+      await atomic(path.join(this.dir(projectId), 'project.json'), p); return decision;
     });
   }
   async setExperimentContext({ projectId, runId, context }) {
@@ -532,6 +551,7 @@ export class AuditService {
     run.revisionLedger = applyRevalidations(run.revisionLedger, await this.extras(projectId, 'revalidations', selected));
     const signature = docs => docs.map(d => `${d.name}\0${d.role}\0${d.sha256}`).sort().join('\n');
     const issues = [...run.issues, ...semantic];
+    if (run.reviewGroups && semantic.length) run.reviewGroups = { ...run.reviewGroups, ungroupedIssueIds: [...new Set([...run.reviewGroups.ungroupedIssueIds, ...semantic.map(i => i.id)])] };
     const physicalDocs = run.documents.filter(d => !['image_table', 'material_ocr'].includes(d.format));
     run.scientificSettingsChangedSinceRun = (p.scientificRevision ?? 0) !== (run.scientificRevision ?? 0);
     return { ...run, execution: run.execution ?? { entryPoint: 'legacy_unknown', recordedBy: 'not recorded in original run' }, issues, issueSummary: summarizeIssues(issues), reviews, coverage: { ...run.coverage, semanticStatus: semantic.length ? 'candidates_submitted_not_exhaustive' : 'not_run' }, profileChangedSinceRun: p.profileRevision !== run.profileRevision, hrmsSettingsChangedSinceRun: (p.hrmsRevision ?? 0) !== (run.hrmsRevision ?? 0), imageTablesChangedSinceRun: (p.visualRevision ?? 0) !== (run.visualRevision ?? 0), sourcesChangedSinceRun: signature(p.documents) !== signature(physicalDocs) };

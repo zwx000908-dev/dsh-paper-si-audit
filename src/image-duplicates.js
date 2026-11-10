@@ -1,3 +1,4 @@
+import { imagePolicy, imageType, IMAGE_RULE_VERSION } from './image-rules.js';
 import { createHash } from 'node:crypto';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 
@@ -38,11 +39,13 @@ export async function fingerprint(bytes) {
   }
   return { pixelHash, width: img.width, height: img.height, deviation, darkFraction, variants: transforms.map((_, i) => [...transformed(normalized, i)]), patches };
 }
-function compare(a, b, threshold) {
+function compare(a, b, policy) {
+  const threshold = policy.imageRmse;
   if (a.pixelHash === b.pixelHash) return { kind: 'exact_pixels', transform: 'identity', normalizedRmse: 0 };
+  if (!policy.whole) return null;
   if ([a, b].some(f => f.deviation < DUPLICATE_LIMITS.minimumStdDev || f.darkFraction < 0.02)) return null;
   let best = null;
-  for (let t = 0; t < transforms.length; t++) {
+  for (let t = 0; t < (policy.transforms ? transforms.length : 1); t++) {
     const ratio = t % 2 ? b.height / b.width : b.width / b.height;
     if (Math.abs(a.width / a.height / ratio - 1) > DUPLICATE_LIMITS.aspectRatioTolerance) continue;
     const error = Math.sqrt(a.variants[0].reduce((s, v, i) => s + (v - b.variants[t][i]) ** 2, 0) / 1024);
@@ -66,7 +69,7 @@ function localMatch(a, b, threshold, sameAsset = false) {
   }
   return best;
 }
-const evidence = asset => ({ assetId: asset.id, documentId: asset.documentId, name: asset.name, role: asset.role, locator: asset.locator, locations: asset.locations ?? [], sourceSha256: asset.sourceSha256, rasterSha256: asset.sha256, path: asset.path, parentAssetId: asset.parentAssetId, parentCrop: asset.parentCrop, panelMode: asset.panelMode });
+const evidence = asset => ({ assetId: asset.id, documentId: asset.documentId, name: asset.name, role: asset.role, locator: asset.locator, locations: asset.locations ?? [], sourceSha256: asset.sourceSha256, rasterSha256: asset.sha256, path: asset.path, parentAssetId: asset.parentAssetId, parentCrop: asset.parentCrop, panelMode: asset.panelMode, imageType: asset.imageType ?? { type: 'unknown', origin: 'unclassified' } });
 
 /** Compare only registered, source-current, hash-verified assets supplied by service. */
 export async function checkImageDuplicates(assets, loadBytes, options = {}) {
@@ -79,22 +82,24 @@ export async function checkImageDuplicates(assets, loadBytes, options = {}) {
     catch (error) { skipped.push({ assetId: asset.id, reason: String(error.message) }); }
   }
   const add = (a, b, match, repeatedLocations) => {
+    const appliedPolicy = imagePolicy(a, b ?? a, options);
     const imageEvidence = b ? [evidence(a), evidence(b)] : [evidence(a)];
-    issues.push({ id: 'duplicate_' + hash(JSON.stringify([a.id, b?.id ?? 'locations', match.kind])).slice(0, 24), type: 'data', category: 'image_duplicate', severity: 'medium', evidenceStatus: 'needs_review', status: 'open', title: ['similar_image', 'local_similarity'].includes(match.kind) ? '科研图片疑似重复（需原图复核）' : '科研图片内容完全重复（用途待确认）', description: `${match.kind === 'same_media_multiple_locations' ? '同一 DOCX 媒体在多个位置出现' : match.kind === 'exact_pixels' ? '解码并铺白底后的整图像素一致' : match.kind === 'local_similarity' ? '多尺度网格区域出现相似内容；红框为候选比较窗口，不是精确篡改边界' : '整图缩放及亮度归一化后相似'}；${match.transform ?? 'identity'}。重复可能来自合理引用、共用对照、标志或正文/SI 复用；本结果不认定不当使用或科研不端。`, evidenceIds: [], imageEvidence, calculation: { ...match, ...(repeatedLocations ? { repeatedLocations } : {}), thresholds: { imageRmse: threshold, localImageRmse: localThreshold } } });
+    issues.push({ id: 'duplicate_' + hash(JSON.stringify([a.id, b?.id ?? 'locations', match.kind])).slice(0, 24), type: 'data', category: 'image_duplicate', severity: 'medium', evidenceStatus: 'needs_review', status: 'open', title: ['similar_image', 'local_similarity'].includes(match.kind) ? '科研图片疑似重复（需原图复核）' : '科研图片内容完全重复（用途待确认）', description: `${match.kind === 'same_media_multiple_locations' ? '同一 DOCX 媒体在多个位置出现' : match.kind === 'exact_pixels' ? '解码并铺白底后的整图像素一致' : match.kind === 'local_similarity' ? '多尺度网格区域出现相似内容；红框为候选比较窗口，不是精确篡改边界' : '整图缩放及亮度归一化后相似'}；${match.transform ?? 'identity'}。重复可能来自合理引用、共用对照、标志或正文/SI 复用；本结果不认定不当使用或科研不端。`, evidenceIds: [], imageEvidence, calculation: { ...match, imagePolicy: appliedPolicy, ...(repeatedLocations ? { repeatedLocations } : {}), thresholds: { imageRmse: appliedPolicy.imageRmse, localImageRmse: appliedPolicy.localImageRmse } } });
   };
   let comparedPairs = 0, pairIndex = 0, nextPairOffset = null;
   for (let i = 0; i < fingerprints.length; i++) {
     const { asset, fp } = fingerprints[i];
     const locations = [...new Map((asset.locations ?? []).map(l => [JSON.stringify([l.part, l.xmlOffset, l.relationshipId]), l])).values()];
     if (locations.length > 1) add(asset, null, { kind: 'same_media_multiple_locations' }, locations);
-    if (options.localImages) { const self = localMatch(fp, fp, localThreshold, true); if (self) add(asset, asset, self); }
+    const policy = imagePolicy(asset, asset, options);
+    if (policy.local) { const self = localMatch(fp, fp, policy.localImageRmse, true); if (self) add(asset, asset, self); }
     for (let j = i + 1; j < fingerprints.length; j++) {
       const other = fingerprints[j].asset;
       if (asset.parentAssetId === other.id || other.parentAssetId === asset.id) continue;
       if (pairIndex++ < pairOffset) continue;
       if (comparedPairs >= pairBudget) { nextPairOffset ??= pairIndex - 1; continue; }
-      comparedPairs++; const match = compare(fp, fingerprints[j].fp, threshold) ?? (options.localImages ? localMatch(fp, fingerprints[j].fp, localThreshold) : null); if (match) add(asset, other, match);
+      comparedPairs++; const pairPolicy = imagePolicy(asset, other, options); const match = compare(fp, fingerprints[j].fp, pairPolicy) ?? (pairPolicy.local ? localMatch(fp, fingerprints[j].fp, pairPolicy.localImageRmse) : null); if (match) add(asset, other, match);
     }
   }
-  return { issues, assets: assets.map(evidence), coverage: { status: fingerprints.length ? 'limited' : 'not_performed', inventoriedAssets: assets.length, checkedAssets: fingerprints.length, comparedPairs, pairOffset, nextPairOffset, totalEligiblePairs: pairIndex, skipped, truncatedAssets: Math.max(0, assets.length - maxAssets), thresholds: { imageRmse: threshold, localImageRmse: localThreshold }, localImages: !!options.localImages, note: 'Whole images and optional bounded multiscale grid patches; registered panel crops retain parent coordinates. Local search is heuristic, not exhaustive crop/rotation/edit detection. Shared layouts and similar spectra can be false positives. Continue pair batches within the same project; no misconduct inference.' } };
+  return { issues, assets: assets.map(evidence), coverage: { ruleVersion: IMAGE_RULE_VERSION, typeRuleOverrides: options.imageTypeRules ?? {}, byType: Object.fromEntries([...new Set(assets.map(imageType))].map(t => [t, assets.filter(a => imageType(a) === t).length])), exactOnlyAssetIds: assets.filter(a => !imagePolicy(a, a, options).whole && !imagePolicy(a, a, options).local).map(a => a.id), status: fingerprints.length ? 'limited' : 'not_performed', inventoriedAssets: assets.length, checkedAssets: fingerprints.length, comparedPairs, pairOffset, nextPairOffset, totalEligiblePairs: pairIndex, skipped, truncatedAssets: Math.max(0, assets.length - maxAssets), thresholds: { imageRmse: threshold, localImageRmse: localThreshold }, localImages: !!options.localImages, note: 'Whole images and optional bounded multiscale grid patches; registered panel crops retain parent coordinates. Local search is heuristic, not exhaustive crop/rotation/edit detection. Shared layouts and similar spectra can be false positives. Continue pair batches within the same project; no misconduct inference.' } };
 }

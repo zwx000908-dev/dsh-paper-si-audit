@@ -134,7 +134,7 @@ export function checkExperimentalProse(documents, options = {}, { hrmsRecords, c
       if (localBases.length > 1) ambiguous.push('multiple_local_one_equivalent_reagents');
       const citations = [cite(b, m.index, m.index + m[0].length)];
       add(doc, b, 'yield', { productMassMg: mass(m[2], m[3]), productAmountMmol: m.reportedAmountMmol ?? null, reportedYieldPercent: m[4], ...parameters }, citations,
-        { entity: m[1], grouping: 'one_product_with_explicit_method_reference', reportedProductAmountMmol: m.reportedAmountMmol ?? null, method: procedure.label, methodLinked: !!procedure.method, methodOverridden: procedure.overrides }, ambiguous,
+        { entity: m[1], grouping: 'one_product_with_explicit_method_reference', reportedProductAmountMmol: m.reportedAmountMmol ?? null, method: procedure.label, methodLinked: !!procedure.method, methodDocumentId: procedure.method?.documentId, methodSourceSha256: procedure.method?.sourceSha256, methodHeadingBlockId: procedure.method?.heading.blockId, methodOverridden: procedure.overrides }, ambiguous,
         { baseline, massCandidates: formula.candidates, citations: [...extraCitations, ...formula.citations, ...(baseline ? [baseline.citation] : [])], problems: [...procedure.problems, ...(!m.reportedAmountMmol ? formula.problems : [])], fieldSources, blockCalculation: !!procedure.method?.conflict });
     }
   }

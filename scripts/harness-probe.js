@@ -48,6 +48,7 @@ export async function apply(ctx, config) {
   if (!listedVisuals.items.some(image => image.id === asset.id)) throw new Error('Prepared image was not registered');
   const imageResult = await invoke('paper_audit_visual_image', { projectId: project.id, assetId: asset.id });
   if (imageResult.imageDelivered !== false || !imageResult.reason) throw new Error('No-model smoke must explicitly avoid delivering an image to an unknown model');
+  await invoke('paper_audit_set_image_type', { projectId: project.id, assetId: asset.id, type: 'table', reason: 'Synthetic fixture user classification; not a real human review' });
   const table = await invoke('paper_audit_read_image_table', { projectId: project.id, assetId: asset.id });
   if (table.status !== 'needs_review' || table.review.status !== 'needs_review' || table.layout !== 'detected_grid' || table.rows.length !== 4 || !table.rows.every(row => row.cells.length === 6)) throw new Error(`Actual native OCR did not recover a provisional 4-row, 6-column table: ${JSON.stringify({ status: table.status, rows: table.rows, notes: table.notes })}`);
   if (table.provider.route !== 'local_wasm' || table.provider.networkRequestsRequired !== false || table.source.sourceSha256 !== sourceHash || table.source.rasterSha256 !== asset.sha256) throw new Error('Native OCR provenance or offline route missing');
@@ -144,6 +145,8 @@ export async function apply(ctx, config) {
   await writeFile(linkedPath, 'General procedure A\nSubstrate (0.20 mmol, 1.0 equiv.) and reagent (0.30 mmol, 1.5 equiv.) were stirred in solvent for 2 h.\nFollowing general procedure A, product 3a was obtained in 86% yield (51.3 mg, 0.171 mmol).');
   await invoke('paper_audit_add_document', { projectId: linkedProject.id, filePath: linkedPath, role: 'si' });
   const linkedRun = await invoke('paper_audit_run', { projectId: linkedProject.id });
+  const causeGroups = await invoke('paper_audit_review_groups', { projectId: linkedProject.id, runId: linkedRun.id });
+  if (!causeGroups.items.some(g => g.kind === 'shared_method_basis')) throw new Error('Native common-cause review groups missing');
   const linkedBlocks = await invoke('paper_audit_blocks', { projectId: linkedProject.id, runId: linkedRun.id, documentId: linkedRun.documents[0].id });
   const methodBlock = linkedBlocks.items[1];
   await invoke('paper_audit_experiment_context', { projectId: linkedProject.id, runId: linkedRun.id, contextJson: JSON.stringify({ scope: 'method', documentId: linkedRun.documents[0].id, methodLabel: 'A', limitingAmountMmol: .2, stoichiometricFactor: 1, reason: 'Synthetic explicit-user-interpretation fixture, not human review of real data', citations: [{ blockId: methodBlock.id, start: 0, end: methodBlock.text.length, quote: methodBlock.text }] }) });
@@ -160,7 +163,7 @@ export async function apply(ctx, config) {
     engineVersion: run.engineVersion, execution: run.execution,
     evidenceRead: true, reportExported: true, semanticStatus: run.coverage.semanticStatus,
     modelCalls: 0, syntheticDataOnly: true,
-    generalProcedureContextChecked: true, directMolarYieldChecked: true, standardMolarMassChecked: true,
+    imageTypePolicyChecked: true, commonCauseGroupsChecked: true, generalProcedureContextChecked: true, directMolarYieldChecked: true, standardMolarMassChecked: true,
     crossReferencesChecked: true, proseExtractionChecked: true, revisionRevalidationChecked: true, wholeProjectWorkflowChecked: true,
     exactMassCalculated: true, webPanelIncluded: false,
     nmrFormulaChecked: true, duplicateImagesChecked: true,

@@ -1,3 +1,4 @@
+import { VERSION } from './version.js';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -7,7 +8,7 @@ async function save(file, value) { await mkdir(path.dirname(file), { recursive: 
 async function signature(service, projectId) {
   const p = await service.getProject(projectId), sources = [];
   for (const d of p.documents) { try { const file = await service.sourcePath(p, d.filePath); sources.push([d.key, d.role, hash(await readFile(file))]); } catch (e) { sources.push([d.key, d.role, 'unreadable:' + e.code]); } }
-  return hash(JSON.stringify([sources, p.profileRevision, p.hrmsRevision, p.scientificRevision ?? 0]));
+  return hash(JSON.stringify([VERSION, sources, p.profileRevision, p.hrmsRevision, p.scientificRevision ?? 0]));
 }
 export async function workflowAction(service, { projectId, action = 'status', jobId, maxSteps = 3, ocr = true, signal, executionEvidence }) {
   if (!['start', 'resume', 'status', 'cancel', 'retry_failed'].includes(action)) throw new Error('Unknown workflow action');

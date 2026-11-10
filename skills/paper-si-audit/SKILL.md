@@ -57,3 +57,8 @@ automatic structure confirmation and automatic Word rewriting are not provided.
 ## 0.6 实验关联
 
 使用 experiments 检查字段来源、方法引用和缺项类型。明确条件复算与 conditionalCalculations 必须分开报告；1-equiv 基准候选和假设 1:1 均不等于已确认限制试剂/计量。优先使用已有产物 mmol。摩尔质量由固定标准原子量与明确中性式计算，不使用 HRMS m/z；离子口径歧义保留候选。experiment_context 仅记录用户明确的解释，模型不得自行确认；保存后重新运行，原件改变使确认失效。见 docs/EXPERIMENTS-0.6.md。
+
+
+For typed duplicate screening, use `paper_audit_set_image_type` only for an explicit user classification. Unknown/spectrum/chart/table/scheme/mixed-page images default to exact-only; no-match is not evidence of unique scientific content. Inspect the per-type scope. The external BioFors baseline found zero of 22 annotated positives: always disclose limited sensitivity rather than declaring image integrity.
+
+Use `paper_audit_review_groups` to read shared-source dependencies and per-record exceptions. A method-level user interpretation still requires exact citations and a rerun. Grouping never authorizes blanket formulas, mass edits, or closure of every member.

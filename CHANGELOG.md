@@ -1,5 +1,14 @@
 # 0.6.0 (development)
 
+
+## 0.7.0 — Typed image screening and evidence-based review groups
+
+- Separate image policies for nine types; preserve explicit user classifications, per-type overrides, hashes and resumable-batch invalidation.
+- Group review by actual shared method source, local formula evidence, template rule or identical image pair; retain exceptions and individual revision closure.
+- Add a frozen external BioFors EDD test subset: 10 real papers, 172 pairs, independently authored upstream labels and reproducible hash-checked downloads.
+- Publish the disappointing baseline without tuning or dropping failures: TP 0, FP 0, TN 135, FN 14, positive abstentions 8, negative abstentions 15. No claim of reliable natural-image detection.
+- Keep the stable v0.2.0 release and Harness 0.2.2-rc.1 target unchanged; development branch exposes 41 native tools.
+
 - Link explicitly referenced general methods with source citations and override/ambiguity handling.
 - Add direct mmol yield calculations and standard-composition molar mass from pinned CIAAW atomic weights.
 - Link local concentration reference candidates; separate conditional scenarios from explicit-input checks.

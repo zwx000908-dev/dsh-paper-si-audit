@@ -18,6 +18,11 @@ export function renderMarkdown(run, evidenceFrom) {
     lines.push('', `清单来源：${line(run.compoundRegistry.requirements?.name ?? '尚未配置要求，仅列示材料状态')}。完整关联及引用见 JSON 或原生 compounds 工具。`, '');
   }
   if (run.profileChangedSinceRun || run.hrmsSettingsChangedSinceRun || run.imageTablesChangedSinceRun || run.sourcesChangedSinceRun) lines.push('**当前项目已发生变更；本报告保留旧运行快照，需重新核对：** ' + [['模板', run.profileChangedSinceRun], ['HRMS 设置', run.hrmsSettingsChangedSinceRun], ['图像转录', run.imageTablesChangedSinceRun], ['已登记来源', run.sourcesChangedSinceRun]].filter(([, changed]) => changed).map(([label]) => label).join('、') + '。', '');
+  if (run.reviewGroups) {
+    lines.push('## 按共同原因组织复核', '', '分组表示共享证据或复核入口，不认定共同错误，不改变逐条问题数，也不自动关闭问题。', '', '| 分组 | 类型 | 影响问题数 | 局部例外数 | 分组 ID |', '|---|---|---|---|---|');
+    for (const g of run.reviewGroups.groups) lines.push(`| ${line(g.title)} | ${g.kind} | ${g.issueCount} | ${g.excludedLocalOverrideRecordIds.length} | ${g.id} |`);
+    lines.push('', '使用 paper_audit_review_groups 查看共同证据、成员缺项、排除的局部改动及下一步。未分组问题仍须逐条复核。', '');
+  }
   lines.push('检查覆盖详情：', '', '```json', JSON.stringify(run.coverage, null, 2), '```', '', '## 数据、语义、实验对应与覆盖问题', '');
   for (const issue of run.issues.filter(i => i.type !== 'format')) {
     lines.push(`### ${line(issue.title)}`, '', `${issue.type} / ${issue.severity} / ${issue.evidenceStatus} · ${issue.id}`, '', issue.description, '');

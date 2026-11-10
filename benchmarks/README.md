@@ -17,4 +17,18 @@ node scripts/evaluate.js "绝对路径/outputs/real-workflow-0.4.0/report.json"
 
 当前结果：合成 14 例为 TP 8、TN 6、FP/FN 0；真实子集为 TP 3、TN 6、FP/FN 0，另 4 条保留不确定，4 个计数读取断言符合参考。这里的 positive 表示应提出疑点，不表示证明原文的某个值错误。
 
-尚未测得：多篇独立论文总体准确率、自然发生的局部图片重复检出率、专家间标注一致性、实际作者复核耗时。扩展数据集时应先固定来源和标签，记录不确定案例，再在开发集之外评估；不能只选已知能检出的例子。
+尚未测得：多篇化学论文全文总体准确率、专家间标注一致性、实际作者复核耗时。多论文图片的外部标注检出评估见下文。扩展数据集时应先固定来源和标签，记录不确定案例，再在开发集之外评估；不能只选已知能检出的例子。
+
+
+## 外部独立标注：BioFors 测试子集
+
+见 [完整方法与边界](../docs/REVIEW-0.7.md)、[冻结清单](biofors-external.json) 和 [0.7.0 完整基线](biofors-baseline-0.7.json)。外部来源：[作者仓库](https://github.com/vimal-isi-edu/BioFors)、[ICCV 原文](https://openaccess.thecvf.com/content/ICCV2021/html/Sabir_BioFors_A_Large_Biomedical_Image_Forensics_Dataset_ICCV_2021_paper.html)。这是与插件标签生成独立的既有外部标注，不是本次新聘专家的复核，也不是跨化学任务的全面验证。
+
+10 篇真实论文，172 对图像（22 个正例、150 个负例），147 张原图。首次固定默认规则得到 TP 0、FP 0、TN 135、FN 14，正例弃判 8、负例弃判 15。全部输入哈希验证通过；缺失图片不计负例。0% 正例检出率说明当前简单相似算法对该真实子集不足，不能用 14 个合成案例通过来掩盖。
+
+```powershell
+python scripts/fetch-biofors.py
+npm run evaluate:external
+```
+
+`prepare-biofors.py` 记录一次性选择过程，不是日常评估命令；重新运行不应覆盖既有冻结清单。CI 检查清单、标签和结果一致性，默认不下载第三方图像。实际外部评估需要上述独立命令。首次评估后不再把这批已看过的失败案例视作未来算法的盲测集。

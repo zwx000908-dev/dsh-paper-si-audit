@@ -23,7 +23,7 @@ const base = canvas.toBuffer('image/png'), cropped = (await extractPanels(base, 
 const other = createCanvas(256, 256), oc = other.getContext('2d'); oc.fillStyle = 'white'; oc.fillRect(0, 0, 256, 256); oc.fillStyle = 'black'; oc.fillRect(20, 30, 80, 110);
 const rotated = createCanvas(256, 256), rc = rotated.getContext('2d'); rc.translate(256, 0); rc.rotate(Math.PI / 2); rc.drawImage(canvas, 0, 0);
 for (const [name, bytes, expected] of [['exact', base, 'positive'], ['crop', cropped, 'positive'], ['rotation', rotated.toBuffer('image/png'), 'positive'], ['different', other.toBuffer('image/png'), 'negative']]) {
-  const pair = [base, bytes], r = await checkImageDuplicates([{ id: 'a0', status: 'ready' }, { id: 'a1', status: 'ready' }], a => pair[Number(a.id.slice(1))], { localImages: true });
+  const pair = [base, bytes], r = await checkImageDuplicates([{ id: 'a0', status: 'ready', imageType: { type: 'photograph', origin: 'synthetic_fixture' } }, { id: 'a1', status: 'ready', imageType: { type: 'photograph', origin: 'synthetic_fixture' } }], a => pair[Number(a.id.slice(1))], { localImages: true });
   add(name, 'image_duplicate', expected, r.issues.some(i => i.imageEvidence.length === 2 && i.imageEvidence[0].assetId !== i.imageEvidence[1].assetId) ? 'positive' : 'negative');
 }
 const output = path.join(root, 'test-output', 'evaluation'); await mkdir(output, { recursive: true });

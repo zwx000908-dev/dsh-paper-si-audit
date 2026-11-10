@@ -1,0 +1,3709 @@
+{
+  "schemaVersion": 1,
+  "dataset": "biofors-external-test-subset-v1",
+  "upstreamRepository": "https://github.com/vimal-isi-edu/BioFors",
+  "upstreamCommit": "19a2b9b10471d4ca053a457978cfe03ea9c8c8eb",
+  "paperUrl": "https://openaccess.thecvf.com/content/ICCV2021/html/Sabir_BioFors_A_Large_Biomedical_Image_Forensics_Dataset_ICCV_2021_paper.html",
+  "labelLicense": "CC0-1.0 (upstream repository LICENSE; not a blanket image redistribution license)",
+  "annotationHashes": {
+    "edd_gt.json": "1bc06485970bde36567f65f4e14dbacd3782d9ee07b99dcdb66610ebf927e59d",
+    "classification.json": "c1d4c640c9e58df7f11bb982f242838d2545d2d8a5f941370ce863f44e8bff3d",
+    "edd_test_pairs.json": "680d13e74bda9fed3db245b464c927a0637396e6652f956f47bf257bb7ebcb91"
+  },
+  "licenseSha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+  "archive": {
+    "url": "https://drive.google.com/file/d/1UVSJ6h7r8pmOWYZkqWeAZ_YvwbFr1wV3/view",
+    "contentRange": "bytes 0-268435455/2082826240",
+    "lastModified": "Mon, 18 Jul 2022 06:43:53 GMT"
+  },
+  "selection": "First 10 upstream EDD test paper IDs encountered in original archive order; sorted categories and pairs; up to first 5 labelled positives and 15 labelled negatives per paper. Frozen before inference. Case-control convenience subset; not prevalence representative.",
+  "paperIds": [
+    "497",
+    "133",
+    "144",
+    "139",
+    "829",
+    "404",
+    "590",
+    "707",
+    "699",
+    "794"
+  ],
+  "labelProvenance": "External published BioFors EDD ground truth; missing pair annotations interpreted as negative only within upstream enumerated EDD test pairs, matching upstream evaluator.",
+  "independentOfPluginLabels": true,
+  "newIndependentExpertReview": false,
+  "scope": "Extracted real-paper image pair screening only; no chemical or whole-paper accuracy claim. IDs are upstream paper identifiers, not DOI verification. No synthetic edits.",
+  "assets": [
+    {
+      "path": "497/030102.png",
+      "sha256": "70ec9c620b45e6dc7de967ddb99cf96292496ac830f0545377bace6ac80f6b16",
+      "bytes": 5879,
+      "category": "FACS",
+      "tarOffset": 5925376
+    },
+    {
+      "path": "497/030105.png",
+      "sha256": "be072e6734fd7d39e66b270380b0a514815ba3aeee3fc6336478c8f865cc4e82",
+      "bytes": 5783,
+      "category": "FACS",
+      "tarOffset": 5932032
+    },
+    {
+      "path": "497/030304.png",
+      "sha256": "1e7499d25d847fcddca4d654384771017b9ad3e4bd5d20ca3f1dbbaeca9ea0c7",
+      "bytes": 6077,
+      "category": "FACS",
+      "tarOffset": 6604800
+    },
+    {
+      "path": "497/030002.png",
+      "sha256": "ee0999bcb972b9bedabc681e36c4a156ddac990aed4738475d18a91718c0a839",
+      "bytes": 8049,
+      "category": "FACS",
+      "tarOffset": 6611456
+    },
+    {
+      "path": "497/030005.png",
+      "sha256": "890a68a6a7b7cce76b8f2f1adba027ef28b05399ea623561a7faeb3bffc7b725",
+      "bytes": 7531,
+      "category": "FACS",
+      "tarOffset": 6708224
+    },
+    {
+      "path": "497/030204.png",
+      "sha256": "57a586dccfb2f9718f10b21730441da03d2b52415eb8e0f0cbe912ccac1e95ea",
+      "bytes": 8567,
+      "category": "FACS",
+      "tarOffset": 7333376
+    },
+    {
+      "path": "497/030104.png",
+      "sha256": "e682980af8c4b212cf8c8991fcb708cc819ff60849d903665379654dffee4415",
+      "bytes": 6553,
+      "category": "FACS",
+      "tarOffset": 7950848
+    },
+    {
+      "path": "497/030103.png",
+      "sha256": "4767c6b51461a9555ffead1996f2684d63798ace32cc94ab2679e4a77bc6de39",
+      "bytes": 5735,
+      "category": "FACS",
+      "tarOffset": 7958016
+    },
+    {
+      "path": "497/030004.png",
+      "sha256": "1860b72baf2b5658dbbbf96e61d8049a4b6fe4993f9cba40568b564a856b9e43",
+      "bytes": 8292,
+      "category": "FACS",
+      "tarOffset": 8808448
+    },
+    {
+      "path": "497/030003.png",
+      "sha256": "3dfd04972c1945eea981969fc3bac61e8d552717bcdbb038a07b62d99ce14477",
+      "bytes": 6895,
+      "category": "FACS",
+      "tarOffset": 8928768
+    },
+    {
+      "path": "497/030000.png",
+      "sha256": "e1260d38663d837877f9a1769333dbac6ef24672900ad960415e386b445bb5b3",
+      "bytes": 8094,
+      "category": "FACS",
+      "tarOffset": 9703936
+    },
+    {
+      "path": "497/030007.png",
+      "sha256": "7abf76745e1a08c3f67c56ffcfcbe6b71d8fac46449dc1b74d9ddea3a05b4d0d",
+      "bytes": 6829,
+      "category": "FACS",
+      "tarOffset": 9793024
+    },
+    {
+      "path": "497/030100.png",
+      "sha256": "e8c8d59983d66a187a4f220a70517bf9989312a61032cd1b3c0f5ffdd641fbeb",
+      "bytes": 5730,
+      "category": "FACS",
+      "tarOffset": 10439168
+    },
+    {
+      "path": "497/030107.png",
+      "sha256": "5313625dbcfcf055abb307cd25cb6a17176af9ade5471439f48d393ba8af23d9",
+      "bytes": 6141,
+      "category": "FACS",
+      "tarOffset": 10445824
+    },
+    {
+      "path": "497/030006.png",
+      "sha256": "1d95e3474ddb7064600820580c37cf9be4a70e0ce7afefbc96049d5c917f11f3",
+      "bytes": 8547,
+      "category": "FACS",
+      "tarOffset": 10534912
+    },
+    {
+      "path": "497/030001.png",
+      "sha256": "353de4097c48702f541301b3efd4e80375e75549f7f1a31b836b77962ef3fd67",
+      "bytes": 7103,
+      "category": "FACS",
+      "tarOffset": 10544128
+    },
+    {
+      "path": "497/030200.png",
+      "sha256": "302039e30f95343c505faf293c5f8c8d9060acaf77d910d60664b129987e815e",
+      "bytes": 8137,
+      "category": "FACS",
+      "tarOffset": 11064320
+    },
+    {
+      "path": "497/030106.png",
+      "sha256": "8140f7f96ec43270ce43297cdc86332b01097b38ffefa8df01936c0379fcfb20",
+      "bytes": 5841,
+      "category": "FACS",
+      "tarOffset": 11073024
+    },
+    {
+      "path": "497/030101.png",
+      "sha256": "66265d82e6ab54e60d021b2a550f0ab254399856f862ccbe86cd59e3204e418e",
+      "bytes": 5449,
+      "category": "FACS",
+      "tarOffset": 11079680
+    },
+    {
+      "path": "497/030404.png",
+      "sha256": "33557d363b7a4c70a37adebb7a2eba47e1d38b4b9a00311ede237bc78045fc42",
+      "bytes": 13971,
+      "category": "FACS",
+      "tarOffset": 11159552
+    },
+    {
+      "path": "497/030300.png",
+      "sha256": "f0c114441bf239cd7dbda544f7823c9d51e3f2c1faa7fc2927e9ef4979bfce62",
+      "bytes": 5741,
+      "category": "FACS",
+      "tarOffset": 11440128
+    },
+    {
+      "path": "133/020105.png",
+      "sha256": "4bd9725b9b715d48cdc66340d52ec922b8b3192cadcc00b7935ad5be676d44ef",
+      "bytes": 18134,
+      "category": "Blot/Gel",
+      "tarOffset": 17066496
+    },
+    {
+      "path": "133/020102.png",
+      "sha256": "244ca83a7b29bf1c23eba22f061ed1f966c4375456b45b82457369a7fe5003d8",
+      "bytes": 20679,
+      "category": "Blot/Gel",
+      "tarOffset": 17104896
+    },
+    {
+      "path": "133/050000.png",
+      "sha256": "6887982080d661e9cdc54f98f1f0c7291fc4ec74f2711ee54b1a6ef197ff8d28",
+      "bytes": 34613,
+      "category": "Microscopy",
+      "tarOffset": 17273856
+    },
+    {
+      "path": "133/020103.png",
+      "sha256": "ca8ca5f4f80df5b00e78ced1911853dcf80bd5f67575157384fb04f226ca1653",
+      "bytes": 22137,
+      "category": "Blot/Gel",
+      "tarOffset": 17595904
+    },
+    {
+      "path": "133/020104.png",
+      "sha256": "d63a1c1ff67da117f8038c60467c6b12ea905a8ba8028a9bfe3d08cb04667b2a",
+      "bytes": 19367,
+      "category": "Blot/Gel",
+      "tarOffset": 17618944
+    },
+    {
+      "path": "133/020202.png",
+      "sha256": "9d76f07622c51b26c58d67e0385f5dd9868ed39290576edd8757d710716a326d",
+      "bytes": 24264,
+      "category": "Blot/Gel",
+      "tarOffset": 17673728
+    },
+    {
+      "path": "133/020000.png",
+      "sha256": "23de898f28255f7a7dea76dfb17109ea51dfe8d8e0145ab3a6ea0f4e4cdff82c",
+      "bytes": 672048,
+      "category": "Blot/Gel",
+      "tarOffset": 17972736
+    },
+    {
+      "path": "133/020111.png",
+      "sha256": "c3ec5a76eeb5a469cc446d1554bf7fd2455b5ca7cd6ef23e30548c09300e35b3",
+      "bytes": 20169,
+      "category": "Blot/Gel",
+      "tarOffset": 18805248
+    },
+    {
+      "path": "133/020201.png",
+      "sha256": "c5888fd3ce82938af9e612aea05c4d83beb1209b54a4cdd398437b296255565a",
+      "bytes": 24080,
+      "category": "Blot/Gel",
+      "tarOffset": 18826240
+    },
+    {
+      "path": "133/050005.png",
+      "sha256": "964ffbfb8827b344ec474b10407bcb48d45564f0cb1ef6989a5a8942fff2b59e",
+      "bytes": 36957,
+      "category": "Microscopy",
+      "tarOffset": 18991104
+    },
+    {
+      "path": "133/020109.png",
+      "sha256": "4783dbadf28436e7eae7e3bafe6aca4bfe750767ad49152e9b455ef9f1b166ee",
+      "bytes": 20976,
+      "category": "Blot/Gel",
+      "tarOffset": 19028992
+    },
+    {
+      "path": "133/020107.png",
+      "sha256": "ac638500959d7e19dea51a4b8938479f938bb975d4862189d3d1f98ded1f36f3",
+      "bytes": 19477,
+      "category": "Blot/Gel",
+      "tarOffset": 19050496
+    },
+    {
+      "path": "133/020100.png",
+      "sha256": "88b98a02a0a5e62f5bb1ce5b44f0c5b96eb2c82e29792d6123892ff5d8edb738",
+      "bytes": 23312,
+      "category": "Blot/Gel",
+      "tarOffset": 19091968
+    },
+    {
+      "path": "133/020200.png",
+      "sha256": "dd45e4e377af78e48b2114db614da2f7e260127361a76fedb58dad92f9f508d3",
+      "bytes": 25166,
+      "category": "Blot/Gel",
+      "tarOffset": 19317760
+    },
+    {
+      "path": "133/020110.png",
+      "sha256": "591d518584a4515f5ecc5267e3badde699a51a2cacd328541b7067aa1b564389",
+      "bytes": 21471,
+      "category": "Blot/Gel",
+      "tarOffset": 19387392
+    },
+    {
+      "path": "133/020101.png",
+      "sha256": "34603d307f51ed91ad3b1630ed9e57438c241fb5303d41230f3349cd19d54b79",
+      "bytes": 20865,
+      "category": "Blot/Gel",
+      "tarOffset": 19606016
+    },
+    {
+      "path": "133/020106.png",
+      "sha256": "9c83965c3e96550732dadd0e08c0cb2681e44503b0a4d3ac0ad3fcb4e1c77f44",
+      "bytes": 18616,
+      "category": "Blot/Gel",
+      "tarOffset": 19627520
+    },
+    {
+      "path": "133/020108.png",
+      "sha256": "23bfd26607794854268116bff700e983d180f45504959af9e27fafb8a990b9a2",
+      "bytes": 18309,
+      "category": "Blot/Gel",
+      "tarOffset": 19646976
+    },
+    {
+      "path": "144/010003.png",
+      "sha256": "fbf0b91a49092f32194a1541a73b5a1d8b8d72514cd3c88a422fa000214a12a8",
+      "bytes": 13624,
+      "category": "Blot/Gel",
+      "tarOffset": 19666432
+    },
+    {
+      "path": "144/020001.png",
+      "sha256": "5ff46498a5c1b2bcb924c83805944da5bfd671baeed6dcc16bb76bda82efdc35",
+      "bytes": 45545,
+      "category": "Blot/Gel",
+      "tarOffset": 19680768
+    },
+    {
+      "path": "144/020101.png",
+      "sha256": "0c1065c991c456365ae53b14f7252474978b34064b40899d622bb395bc5b770e",
+      "bytes": 29543,
+      "category": "Blot/Gel",
+      "tarOffset": 19726848
+    },
+    {
+      "path": "144/020000.png",
+      "sha256": "2b706803ea0ca5838d35f3925e5c4ec218a20fe2ac8ccca48e55aa39a173a531",
+      "bytes": 51444,
+      "category": "Blot/Gel",
+      "tarOffset": 19757056
+    },
+    {
+      "path": "144/010002.png",
+      "sha256": "9fff165fc54d3a41866b7221bf7f47b209c572d6197803ee14b1927bcced0822",
+      "bytes": 16351,
+      "category": "Blot/Gel",
+      "tarOffset": 19809280
+    },
+    {
+      "path": "144/020100.png",
+      "sha256": "f6de4103d9b60d1c1b9ad0849492fa47280017daf8a199b5119d9cac4c7c38f7",
+      "bytes": 32883,
+      "category": "Blot/Gel",
+      "tarOffset": 19826176
+    },
+    {
+      "path": "144/020103.png",
+      "sha256": "c2c96d7a9ff207cf35c933082771d740d03cbfe7a9aba2b69b55dfb1544c325d",
+      "bytes": 27050,
+      "category": "Blot/Gel",
+      "tarOffset": 19933696
+    },
+    {
+      "path": "144/020003.png",
+      "sha256": "d02594e6778ed069810b778dcc27c4cf8d7c336c06b76a05fcd6d6feebbb45b5",
+      "bytes": 42537,
+      "category": "Blot/Gel",
+      "tarOffset": 19961344
+    },
+    {
+      "path": "144/010001.png",
+      "sha256": "bdc9d562d8c58792c0555302c34c6cc41233afee260b2e04de3ab445aaa773ef",
+      "bytes": 17440,
+      "category": "Blot/Gel",
+      "tarOffset": 20004864
+    },
+    {
+      "path": "144/020102.png",
+      "sha256": "af98c74f80bad7f324b1c09b3257ead6fa9841fe14b1affc77223400e772b3d3",
+      "bytes": 26980,
+      "category": "Blot/Gel",
+      "tarOffset": 20023296
+    },
+    {
+      "path": "144/010000.png",
+      "sha256": "ba3defeb15ca3c32c9892849d46db3de1f26c7177413fdcc681228d4c53010f0",
+      "bytes": 20040,
+      "category": "Blot/Gel",
+      "tarOffset": 20101120
+    },
+    {
+      "path": "144/020002.png",
+      "sha256": "2c4d95d61872ab7b2f8ca691db3d48ee4fcd49f4a26aa35a7e7a6ebe9b53bb88",
+      "bytes": 37052,
+      "category": "Blot/Gel",
+      "tarOffset": 20122112
+    },
+    {
+      "path": "139/040007.png",
+      "sha256": "3a714a6d7f1b77a641c437305460d200e40a3161810cab7c2811b31438cf6396",
+      "bytes": 15341,
+      "category": "Microscopy",
+      "tarOffset": 20197376
+    },
+    {
+      "path": "139/040000.png",
+      "sha256": "ca42fc7aa475bfe555e40428c64d635b84ae2a591ff740e0f6618a8f508754d5",
+      "bytes": 16542,
+      "category": "Microscopy",
+      "tarOffset": 20213248
+    },
+    {
+      "path": "139/050006.png",
+      "sha256": "5bb04d4163410143ff13d1ecaa1572cefbea44dac4729f23b7cf2da1b17d4e27",
+      "bytes": 11051,
+      "category": "Microscopy",
+      "tarOffset": 20230656
+    },
+    {
+      "path": "139/040001.png",
+      "sha256": "51588d678a772e93ff1b49ff21c126be7c644744e0298b3d96540e6933e6f376",
+      "bytes": 13870,
+      "category": "Microscopy",
+      "tarOffset": 20291584
+    },
+    {
+      "path": "139/040006.png",
+      "sha256": "71890b57623ccfca489429538899824a859f6b574a8f3400b34d61e346ca3249",
+      "bytes": 14336,
+      "category": "Microscopy",
+      "tarOffset": 20319232
+    },
+    {
+      "path": "139/050206.png",
+      "sha256": "96a5269b76b4bdbc6b11b72aeea39e2e7b5dc9d74b4356388d17e988b2bfb9b7",
+      "bytes": 11483,
+      "category": "Microscopy",
+      "tarOffset": 20370944
+    },
+    {
+      "path": "139/050009.png",
+      "sha256": "aa469b31fedd251f851ab8644786e9b760cf4ade6e3a809275136c190d61e294",
+      "bytes": 11447,
+      "category": "Microscopy",
+      "tarOffset": 20383232
+    },
+    {
+      "path": "139/050000.png",
+      "sha256": "c246cc9dc3652222a574113fa7b3b3ef7890b21a66d70edb45f35a05ec1cb2ad",
+      "bytes": 10978,
+      "category": "Microscopy",
+      "tarOffset": 20395520
+    },
+    {
+      "path": "139/050205.png",
+      "sha256": "37791531c1b25049b8695a957627876261e094078671675f5e9f61db7d77c40b",
+      "bytes": 11507,
+      "category": "Microscopy",
+      "tarOffset": 20419584
+    },
+    {
+      "path": "139/050202.png",
+      "sha256": "f0b609d51f4cdc47b49543eaf5203b52d754e62c66bea71a08afe4d603cb5cd6",
+      "bytes": 11010,
+      "category": "Microscopy",
+      "tarOffset": 20431872
+    },
+    {
+      "path": "139/050003.png",
+      "sha256": "185e64ade1d6841b8b72eb3715dae5ef813493e7a86a033f5de0086915cb87c6",
+      "bytes": 11819,
+      "category": "Microscopy",
+      "tarOffset": 20455936
+    },
+    {
+      "path": "139/040005.png",
+      "sha256": "5026a9c297b9b43ec69d2e16fd45db12fc204c2e5659d03917b2679d99ac5f73",
+      "bytes": 15477,
+      "category": "Microscopy",
+      "tarOffset": 20468736
+    },
+    {
+      "path": "139/040002.png",
+      "sha256": "ef11b267f86f5a457fc435c7e82601750717585d7f3d1face37f7441cb118bca",
+      "bytes": 17298,
+      "category": "Microscopy",
+      "tarOffset": 20485120
+    },
+    {
+      "path": "139/050005.png",
+      "sha256": "0d86d1b02df8aa0346293206e80c4a1ed6ab9dc703900805098dbb31050e4690",
+      "bytes": 11831,
+      "category": "Microscopy",
+      "tarOffset": 20537856
+    },
+    {
+      "path": "139/050203.png",
+      "sha256": "b754201327eb7ec0a300d77af8cfb5dcc18ff40828093625cc1ef2b7ee4195a3",
+      "bytes": 11658,
+      "category": "Microscopy",
+      "tarOffset": 20550656
+    },
+    {
+      "path": "139/050204.png",
+      "sha256": "7ae35562225bdd112dda0e6c0db36400e253be6f3e702eba9ad71238b25ecaaf",
+      "bytes": 11847,
+      "category": "Microscopy",
+      "tarOffset": 20562944
+    },
+    {
+      "path": "139/040003.png",
+      "sha256": "b8b089df979a324e3ccb39af86d90706532e4bf9c6f9be10efd3830c8d82f391",
+      "bytes": 14231,
+      "category": "Microscopy",
+      "tarOffset": 20599808
+    },
+    {
+      "path": "139/040004.png",
+      "sha256": "fce72efbb739ce65d136f2868a4d8f6d5194870590e97833333d2ff03d7a84d1",
+      "bytes": 15926,
+      "category": "Microscopy",
+      "tarOffset": 20614656
+    },
+    {
+      "path": "829/060001.png",
+      "sha256": "decd9766e16d0168af19215d7c535cd41ddf59d470653411ff40120d4e6ac36a",
+      "bytes": 18529,
+      "category": "Blot/Gel",
+      "tarOffset": 20632064
+    },
+    {
+      "path": "829/060101.png",
+      "sha256": "2c7137c02a3195ed6be7e4d9b7586bdda4e4732c627b715dad085d032a2dccf6",
+      "bytes": 21067,
+      "category": "Blot/Gel",
+      "tarOffset": 20773376
+    },
+    {
+      "path": "829/070000.png",
+      "sha256": "98776c080ebf496bf125d9257225c1fa4b2172d974dce26519e081ecc16411a0",
+      "bytes": 42203,
+      "category": "Blot/Gel",
+      "tarOffset": 21057536
+    },
+    {
+      "path": "829/060000.png",
+      "sha256": "430fff6ecc85dd04af3df4c3aff3a01ddb5dfd3d9d1bcd98b00d0f07229087d7",
+      "bytes": 29244,
+      "category": "Blot/Gel",
+      "tarOffset": 21423104
+    },
+    {
+      "path": "829/070001.png",
+      "sha256": "ad8b383ed00c4b105d3aa63c5bf03b37d23db86eec332a3fddfff9d13ea925ba",
+      "bytes": 39556,
+      "category": "Blot/Gel",
+      "tarOffset": 21453312
+    },
+    {
+      "path": "829/010102.png",
+      "sha256": "36e2f5adfcfffe68927f80d4d2243243b5192a6012ce5c294fcb53fb80c32140",
+      "bytes": 81314,
+      "category": "Microscopy",
+      "tarOffset": 21585408
+    },
+    {
+      "path": "829/060100.png",
+      "sha256": "82383edff902053c1b4d108d7ecd99040c7f2fbef0be926f2e2660364513c738",
+      "bytes": 23468,
+      "category": "Blot/Gel",
+      "tarOffset": 21910016
+    },
+    {
+      "path": "829/070002.png",
+      "sha256": "7f9fe58837ebf48cb64c7db1e1f9da26f7ccbfa7ad7a9c6909156970406b1d4e",
+      "bytes": 43157,
+      "category": "Blot/Gel",
+      "tarOffset": 21934080
+    },
+    {
+      "path": "829/060103.png",
+      "sha256": "75f59e1ba7ad61f1c95ba96b91482e763ce9de5422fdabbef0e91cc2035af608",
+      "bytes": 18445,
+      "category": "Blot/Gel",
+      "tarOffset": 22374912
+    },
+    {
+      "path": "829/060104.png",
+      "sha256": "b3b587eed737be6d678e7d9fdb3be690c7c2e7e2a249db01021496f01e78d89b",
+      "bytes": 20042,
+      "category": "Blot/Gel",
+      "tarOffset": 22394368
+    },
+    {
+      "path": "829/010001.png",
+      "sha256": "03cc250495ef119ac32d6d73e113eaeda73c56488583c05e7a74e17821342402",
+      "bytes": 81665,
+      "category": "Microscopy",
+      "tarOffset": 22651904
+    },
+    {
+      "path": "829/060003.png",
+      "sha256": "f4d5bd7a209eb8f946f94fa0b000151de7f050b933294766b183bf9323ead972",
+      "bytes": 20820,
+      "category": "Blot/Gel",
+      "tarOffset": 22734336
+    },
+    {
+      "path": "829/060004.png",
+      "sha256": "3ed8f89b1ce7e68120752a4e25f6d4aca3a052a63aa0a8594bf6184c980ed775",
+      "bytes": 21348,
+      "category": "Blot/Gel",
+      "tarOffset": 22755840
+    },
+    {
+      "path": "829/060105.png",
+      "sha256": "4e0ef7c25853abbe70ddc37f7995b5e59ee9c631f77327db85fa006fb11bbf92",
+      "bytes": 22553,
+      "category": "Blot/Gel",
+      "tarOffset": 22777856
+    },
+    {
+      "path": "829/060102.png",
+      "sha256": "b465e7caa59f861255516b586077484005d40d6ae3a7cda9763d09d38f9b7927",
+      "bytes": 26436,
+      "category": "Blot/Gel",
+      "tarOffset": 22801408
+    },
+    {
+      "path": "829/070003.png",
+      "sha256": "616b00f066dc86da6cbb34eefb147f058c808c4178c1bce6416776eaba92a0e2",
+      "bytes": 34525,
+      "category": "Blot/Gel",
+      "tarOffset": 23220224
+    },
+    {
+      "path": "829/060005.png",
+      "sha256": "268cdd61d1b7ce8e2e151e314214b04e0f5583305a27bd07e0da65985bb39d25",
+      "bytes": 22419,
+      "category": "Blot/Gel",
+      "tarOffset": 23329792
+    },
+    {
+      "path": "829/060002.png",
+      "sha256": "0b754720a2bd1e1f6fce4d7a75913187c17d39aa5161359f7635a42793ee8d69",
+      "bytes": 16619,
+      "category": "Blot/Gel",
+      "tarOffset": 23352832
+    },
+    {
+      "path": "404/010201.png",
+      "sha256": "feefdeda8932d7af925b138b6e468c961fa859b80cdf30207401335630dd2fec",
+      "bytes": 8073,
+      "category": "Blot/Gel",
+      "tarOffset": 24529920
+    },
+    {
+      "path": "404/010000.png",
+      "sha256": "75113ffe4af3384063e3d0a3fb6630ca9f02cf505fbd8619796c3a14acdd593d",
+      "bytes": 13518,
+      "category": "Blot/Gel",
+      "tarOffset": 24576512
+    },
+    {
+      "path": "404/020102.png",
+      "sha256": "541011ad8cea0d0e26cbd9472074c3572aebd2fbe95f9b502d23f3bfeab8cd2c",
+      "bytes": 18753,
+      "category": "Blot/Gel",
+      "tarOffset": 24645120
+    },
+    {
+      "path": "404/010100.png",
+      "sha256": "62eff8cc8fc7cff0fd76332d51f7b4fd175060aba749ed252c04759826daa366",
+      "bytes": 8525,
+      "category": "Blot/Gel",
+      "tarOffset": 25027584
+    },
+    {
+      "path": "404/030003.png",
+      "sha256": "f49e1f8ab45554386b421f3902aea38e0962e13f45f90d046323e4a02e7d364b",
+      "bytes": 12869,
+      "category": "Blot/Gel",
+      "tarOffset": 25072128
+    },
+    {
+      "path": "404/010001.png",
+      "sha256": "a546c7d8245c76eace59a3c4275eaf4fafa71db33ea29ae198ee62fb9d039fde",
+      "bytes": 13870,
+      "category": "Blot/Gel",
+      "tarOffset": 25183744
+    },
+    {
+      "path": "404/010200.png",
+      "sha256": "509d534e664b2130b19f49c73d82586257332d99ed0b8a9d5b9206726686097e",
+      "bytes": 11622,
+      "category": "Blot/Gel",
+      "tarOffset": 25233920
+    },
+    {
+      "path": "404/010101.png",
+      "sha256": "8e6e628dc22196a157f2582fd2186232b3c3d1b6b8c2654b2b870d4e78a61c35",
+      "bytes": 9306,
+      "category": "Blot/Gel",
+      "tarOffset": 25276416
+    },
+    {
+      "path": "404/020104.png",
+      "sha256": "389df3245d0972b9e80df4d4fefc5f588af7ba2bde03120490535faf0118f529",
+      "bytes": 9934,
+      "category": "Blot/Gel",
+      "tarOffset": 25675264
+    },
+    {
+      "path": "404/020103.png",
+      "sha256": "ca6a03290babfa5c530154781d156ed4ce4c7e37318cf7538922c3861f2adc08",
+      "bytes": 8558,
+      "category": "Blot/Gel",
+      "tarOffset": 25718784
+    },
+    {
+      "path": "404/030001.png",
+      "sha256": "fa0d42067808f7eddfad7c4134c282f3c923b915b006c63c45c68c27d9f3e6c3",
+      "bytes": 6666,
+      "category": "Blot/Gel",
+      "tarOffset": 25739264
+    },
+    {
+      "path": "404/010102.png",
+      "sha256": "cb800958cd8c3b555a89a302e58a9079370e71abe3e3b087e1832627b8696492",
+      "bytes": 10537,
+      "category": "Blot/Gel",
+      "tarOffset": 25746944
+    },
+    {
+      "path": "404/020100.png",
+      "sha256": "54c7f849827b45c94a9469c46cf00f6ea012f8c4985e0816317759d48c0a4d3e",
+      "bytes": 11244,
+      "category": "Blot/Gel",
+      "tarOffset": 25863680
+    },
+    {
+      "path": "404/010002.png",
+      "sha256": "64e4160f8aa29feb6b617d8bddf20b0565bc028079b36dd7922d791723c61d0d",
+      "bytes": 14248,
+      "category": "Blot/Gel",
+      "tarOffset": 26015232
+    },
+    {
+      "path": "404/010203.png",
+      "sha256": "a714c2813770a883550991ec7eef23fb73d538323b95c0f16a4b7f62fb1cc628",
+      "bytes": 5582,
+      "category": "Blot/Gel",
+      "tarOffset": 26097152
+    },
+    {
+      "path": "404/020101.png",
+      "sha256": "8fcbb1d4fd1f8d358d75a83e7fa8a7e52ee71c3f617ddc01700f1dc5a6f86e51",
+      "bytes": 5754,
+      "category": "Blot/Gel",
+      "tarOffset": 26176512
+    },
+    {
+      "path": "404/030000.png",
+      "sha256": "dbccec36d77dec524036da94b4ac8d55beee2a2d3924c4872df5e78fe5932692",
+      "bytes": 8108,
+      "category": "Blot/Gel",
+      "tarOffset": 26295808
+    },
+    {
+      "path": "404/010202.png",
+      "sha256": "c465f9f8781a7dccbfffa8c168a260af77e5ad9a25eee5ec8670d57eefdb939b",
+      "bytes": 8678,
+      "category": "Blot/Gel",
+      "tarOffset": 26380800
+    },
+    {
+      "path": "590/010100.png",
+      "sha256": "57915d1471b4034e7cb8810f1e0f7e3a93ad0b87304f90110ba9d2a6195da8f2",
+      "bytes": 26162,
+      "category": "Blot/Gel",
+      "tarOffset": 26748928
+    },
+    {
+      "path": "590/040200.png",
+      "sha256": "fc8c99a497c44c20e4fb68bf9280f08b81b153fee2f37fd2da6944d2fd0579ac",
+      "bytes": 57327,
+      "category": "Blot/Gel",
+      "tarOffset": 26776064
+    },
+    {
+      "path": "590/010000.png",
+      "sha256": "d7c2edf7e50c624781b74f4d8ab8c0ab837f147d56a6a1fab80b44ac08845156",
+      "bytes": 31868,
+      "category": "Blot/Gel",
+      "tarOffset": 26920960
+    },
+    {
+      "path": "590/050000.png",
+      "sha256": "5fc5e52e42a8b983939c4e76f24b1330f51ecdd28df5da0a8f8e19805d4bb1df",
+      "bytes": 50534,
+      "category": "Blot/Gel",
+      "tarOffset": 26953728
+    },
+    {
+      "path": "590/010101.png",
+      "sha256": "d9d84fd9e33558f9ad83187c03b6f9a7d2a0e011c99062cb3783c26d3ea103f7",
+      "bytes": 24385,
+      "category": "Blot/Gel",
+      "tarOffset": 27353600
+    },
+    {
+      "path": "590/010001.png",
+      "sha256": "8b95ccb59530fdcf5dcddc50d60abb5bc4bb71ce259a5ca168ec33f7c7cdd4b5",
+      "bytes": 25219,
+      "category": "Blot/Gel",
+      "tarOffset": 27790336
+    },
+    {
+      "path": "590/060100.png",
+      "sha256": "20a0e0b41a817605941e61271433b89f745a94fb2c79f139c38d137918b33b8f",
+      "bytes": 12090,
+      "category": "Blot/Gel",
+      "tarOffset": 28050944
+    },
+    {
+      "path": "707/010103.png",
+      "sha256": "073cc04a9d84588ae36c0a14b5f70f6567015b0d93993f9239a8eee715036197",
+      "bytes": 30486,
+      "category": "Blot/Gel",
+      "tarOffset": 46066176
+    },
+    {
+      "path": "707/030000.png",
+      "sha256": "d0b73a12b2398235927039888882826d766f3c14375eeeebc6c94a8bd397de45",
+      "bytes": 22771,
+      "category": "Blot/Gel",
+      "tarOffset": 46097408
+    },
+    {
+      "path": "707/010003.png",
+      "sha256": "c5f323a6f6eef594856b32513e5eee01fd6789b8d83cfa6719566f3ede0d128b",
+      "bytes": 47497,
+      "category": "Blot/Gel",
+      "tarOffset": 46166016
+    },
+    {
+      "path": "707/060006.png",
+      "sha256": "ed31a6fde1a75c5f54b6cb40c4375bddca9030470027c72056acc9584e7b6d02",
+      "bytes": 44227,
+      "category": "FACS",
+      "tarOffset": 46264320
+    },
+    {
+      "path": "707/030001.png",
+      "sha256": "b75c519fcf65bb4c4e45e7f0483e5757c4b37eaadc5431dfaddc527eada0f7b5",
+      "bytes": 10397,
+      "category": "Blot/Gel",
+      "tarOffset": 46400000
+    },
+    {
+      "path": "707/010102.png",
+      "sha256": "a983f3dfc23ee3175bedaf52d9a123950e15f4224ccf153fd0b08c885d9e9e06",
+      "bytes": 37624,
+      "category": "Blot/Gel",
+      "tarOffset": 46411264
+    },
+    {
+      "path": "707/060007.png",
+      "sha256": "68417c6e4e0cef710e59a8a59e1cc9a4a80a46787456c519b45d49103f19c9d8",
+      "bytes": 49794,
+      "category": "FACS",
+      "tarOffset": 46496768
+    },
+    {
+      "path": "707/010002.png",
+      "sha256": "4516990add1ff33790ef3974423075b0bc5496e4a3fdebf6bc72b9b9db46d1c9",
+      "bytes": 33952,
+      "category": "Blot/Gel",
+      "tarOffset": 46588928
+    },
+    {
+      "path": "707/060003.png",
+      "sha256": "275fef7d29cefa81d038f08c63223ec21d84635c99c3f8b51ee08a089503f56c",
+      "bytes": 46359,
+      "category": "FACS",
+      "tarOffset": 46623744
+    },
+    {
+      "path": "707/010001.png",
+      "sha256": "4b93ead9e341112aac586d14bac9a8ffdcd07c0ce6f53464e1b641c5f861b80d",
+      "bytes": 44035,
+      "category": "Blot/Gel",
+      "tarOffset": 46718976
+    },
+    {
+      "path": "707/030002.png",
+      "sha256": "ce5b3b0d3b884d4304722724e678184eba3525232a7d97c6d1af7d03865eb5cc",
+      "bytes": 19163,
+      "category": "Blot/Gel",
+      "tarOffset": 46764032
+    },
+    {
+      "path": "707/010101.png",
+      "sha256": "da5b73472d514e3b8c8a748601f0de6246370dcfe0266c5fc84236c8daa836ea",
+      "bytes": 39356,
+      "category": "Blot/Gel",
+      "tarOffset": 46784000
+    },
+    {
+      "path": "707/010000.png",
+      "sha256": "bf5b0e966c2b3bd014fd166d5f18bb9c4eac6d81b2f80acf3e6a2fc1f2a3a64b",
+      "bytes": 42727,
+      "category": "Blot/Gel",
+      "tarOffset": 46823936
+    },
+    {
+      "path": "707/060005.png",
+      "sha256": "8da4e4682989a0002d0e5167d5275735f29fdc1cc29aa32deb6aa932ec77b405",
+      "bytes": 47144,
+      "category": "FACS",
+      "tarOffset": 46867456
+    },
+    {
+      "path": "707/060002.png",
+      "sha256": "4ab9da58db1d60998406cdeafe4680373fbcbf9939207a5e81c70c848d7cd60c",
+      "bytes": 41761,
+      "category": "FACS",
+      "tarOffset": 46915584
+    },
+    {
+      "path": "707/010100.png",
+      "sha256": "6b94d1d26e902a51a47081b32b5c9604734f9629db2cfd93d8bb16f3b7464a75",
+      "bytes": 46217,
+      "category": "Blot/Gel",
+      "tarOffset": 46958080
+    },
+    {
+      "path": "707/030003.png",
+      "sha256": "f997e91e2b8a01b14a939ad076eaf06dab03c45b55a5d9dbee619f497669e9b2",
+      "bytes": 21594,
+      "category": "Blot/Gel",
+      "tarOffset": 47005184
+    },
+    {
+      "path": "699/020002.png",
+      "sha256": "e65a51011d742525f9c0edee4e9ad71d1ce93ee63e288cb266ef98c23b803522",
+      "bytes": 28272,
+      "category": "Blot/Gel",
+      "tarOffset": 47748608
+    },
+    {
+      "path": "699/070104.png",
+      "sha256": "6690c27b60334dc8c2734d8661fd9b1dd19c6adb54ffd2af4be2f718afcb0e69",
+      "bytes": 6100,
+      "category": "Blot/Gel",
+      "tarOffset": 47785984
+    },
+    {
+      "path": "699/050000.png",
+      "sha256": "311cc8e5088f5e97dfba27f77ee793b4abcb9010590ddcebf2c0eb0958bb6f6b",
+      "bytes": 22966,
+      "category": "Blot/Gel",
+      "tarOffset": 47804928
+    },
+    {
+      "path": "699/020102.png",
+      "sha256": "20790b33425b082bbe414a0e524060e53dc4fe06c51b37a9248dc2cc1f2ebd77",
+      "bytes": 27252,
+      "category": "Blot/Gel",
+      "tarOffset": 47837184
+    },
+    {
+      "path": "699/070004.png",
+      "sha256": "2c0a6fb0d19511bd13a4d0e8f9a3483636d56ca1dae2a9f7b073be9ffffd15c6",
+      "bytes": 7610,
+      "category": "Blot/Gel",
+      "tarOffset": 47865344
+    },
+    {
+      "path": "699/020101.png",
+      "sha256": "9475199a58d6218c0778614dba4e9a869bf75dbad3db5accabc9a97fed446dec",
+      "bytes": 16474,
+      "category": "Blot/Gel",
+      "tarOffset": 47920128
+    },
+    {
+      "path": "699/020001.png",
+      "sha256": "59197cd4caca2381a3f4e1f46c0eb661152ea3a02762e3385b31299c880d43e5",
+      "bytes": 24086,
+      "category": "Blot/Gel",
+      "tarOffset": 47957504
+    },
+    {
+      "path": "699/070001.png",
+      "sha256": "809d81e7b8ed3bd3e293724f55b99cce8856a24d58790a191e9921bf720c58b3",
+      "bytes": 11901,
+      "category": "Blot/Gel",
+      "tarOffset": 48054784
+    },
+    {
+      "path": "699/020100.png",
+      "sha256": "c14554d869fcc810b121befe2042da70720cc2173cdad9abf943124b1f98b52d",
+      "bytes": 28150,
+      "category": "Blot/Gel",
+      "tarOffset": 48077824
+    },
+    {
+      "path": "699/070101.png",
+      "sha256": "2e3d9a3f43df69b10ad6a737a8163ea89b094c68eac69cfb845388b3e453b636",
+      "bytes": 11754,
+      "category": "Blot/Gel",
+      "tarOffset": 48138240
+    },
+    {
+      "path": "699/020000.png",
+      "sha256": "85b0d3ef217988d7aab29940a8a1673950b7260cf657b19763e6b72a4d99f004",
+      "bytes": 29169,
+      "category": "Blot/Gel",
+      "tarOffset": 48160256
+    },
+    {
+      "path": "794/010001.png",
+      "sha256": "e503c72633ce16ca23b97e4dea93de8f5b94b24e5fa165e59b797f1912c15a16",
+      "bytes": 47480,
+      "category": "Blot/Gel",
+      "tarOffset": 53000192
+    },
+    {
+      "path": "794/010000.png",
+      "sha256": "b242bffe6ea836e4065fec79633f279ba8c82ccdd00ba91c3308154263263ebd",
+      "bytes": 33971,
+      "category": "Blot/Gel",
+      "tarOffset": 53048320
+    },
+    {
+      "path": "794/020001.png",
+      "sha256": "14d4f4fa3fc83da2d8c231de4f755fe5ce7601a4c336b39bf7d4daeaec91ad67",
+      "bytes": 13414,
+      "category": "Blot/Gel",
+      "tarOffset": 53083136
+    },
+    {
+      "path": "794/030000.png",
+      "sha256": "f96420b02aed4ab690270aa94d564cd520d48c4027f7dac629c13257de4fea8c",
+      "bytes": 29825,
+      "category": "Blot/Gel",
+      "tarOffset": 53097472
+    },
+    {
+      "path": "794/070000.png",
+      "sha256": "43de80dcf652183d562ef9dae3c4703df2ca70897991ac8fc70d270fe5ccbf9b",
+      "bytes": 5188,
+      "category": "Blot/Gel",
+      "tarOffset": 53128192
+    },
+    {
+      "path": "794/020000.png",
+      "sha256": "1c49cbac07a37460b0385cea7fc2ebf50df4d209059afe33684d24ef113f14f3",
+      "bytes": 14128,
+      "category": "Blot/Gel",
+      "tarOffset": 53134336
+    },
+    {
+      "path": "794/030001.png",
+      "sha256": "57521cc2c959050965afadf12a5e2457b1e91703602dbb48773eb2f4538ff363",
+      "bytes": 33285,
+      "category": "Blot/Gel",
+      "tarOffset": 53149184
+    }
+  ],
+  "cases": [
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030200.png",
+      "expected": "positive",
+      "annotationPair": "030200.png 030000.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            1,
+            60,
+            54
+          ]
+        ],
+        [
+          [
+            1,
+            2,
+            62,
+            54
+          ]
+        ]
+      ],
+      "id": "biofors-497-030000-030200",
+      "assets": [
+        "497/030000.png",
+        "497/030200.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030004.png 030204.png",
+      "expected": "positive",
+      "annotationPair": "030204.png 030004.png",
+      "annotationBoxes": [
+        [
+          [
+            0,
+            2,
+            62,
+            55
+          ]
+        ],
+        [
+          [
+            1,
+            0,
+            61,
+            53
+          ]
+        ]
+      ],
+      "id": "biofors-497-030004-030204",
+      "assets": [
+        "497/030004.png",
+        "497/030204.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030004.png 030404.png",
+      "expected": "positive",
+      "annotationPair": "030004.png 030404.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            0,
+            62,
+            53
+          ]
+        ],
+        [
+          [
+            2,
+            1,
+            74,
+            74
+          ]
+        ]
+      ],
+      "id": "biofors-497-030004-030404",
+      "assets": [
+        "497/030004.png",
+        "497/030404.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030100.png 030300.png",
+      "expected": "positive",
+      "annotationPair": "030100.png 030300.png",
+      "annotationBoxes": [
+        [
+          [
+            2,
+            11,
+            61,
+            53
+          ]
+        ],
+        [
+          [
+            2,
+            11,
+            61,
+            54
+          ]
+        ]
+      ],
+      "id": "biofors-497-030100-030300",
+      "assets": [
+        "497/030100.png",
+        "497/030300.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030104.png 030304.png",
+      "expected": "positive",
+      "annotationPair": "030104.png 030304.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            11,
+            61,
+            55
+          ]
+        ],
+        [
+          [
+            1,
+            11,
+            60,
+            54
+          ]
+        ]
+      ],
+      "id": "biofors-497-030104-030304",
+      "assets": [
+        "497/030104.png",
+        "497/030304.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030001",
+      "assets": [
+        "497/030000.png",
+        "497/030001.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030002",
+      "assets": [
+        "497/030000.png",
+        "497/030002.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030003",
+      "assets": [
+        "497/030000.png",
+        "497/030003.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030004.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030004",
+      "assets": [
+        "497/030000.png",
+        "497/030004.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030005.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030005",
+      "assets": [
+        "497/030000.png",
+        "497/030005.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030006.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030006",
+      "assets": [
+        "497/030000.png",
+        "497/030006.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030007.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030007",
+      "assets": [
+        "497/030000.png",
+        "497/030007.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030100",
+      "assets": [
+        "497/030000.png",
+        "497/030100.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030101",
+      "assets": [
+        "497/030000.png",
+        "497/030101.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030102",
+      "assets": [
+        "497/030000.png",
+        "497/030102.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030103.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030103",
+      "assets": [
+        "497/030000.png",
+        "497/030103.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030104.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030104",
+      "assets": [
+        "497/030000.png",
+        "497/030104.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030105.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030105",
+      "assets": [
+        "497/030000.png",
+        "497/030105.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030106.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030106",
+      "assets": [
+        "497/030000.png",
+        "497/030106.png"
+      ]
+    },
+    {
+      "paperId": "497",
+      "category": "FACS",
+      "pair": "030000.png 030107.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-497-030000-030107",
+      "assets": [
+        "497/030000.png",
+        "497/030107.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Microscopy",
+      "pair": "050000.png 050005.png",
+      "expected": "positive",
+      "annotationPair": "050000.png 050005.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            1,
+            190,
+            133
+          ]
+        ],
+        [
+          [
+            1,
+            0,
+            190,
+            141
+          ]
+        ]
+      ],
+      "id": "biofors-133-050000-050005",
+      "assets": [
+        "133/050000.png",
+        "133/050005.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020100",
+      "assets": [
+        "133/020000.png",
+        "133/020100.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020101",
+      "assets": [
+        "133/020000.png",
+        "133/020101.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020102",
+      "assets": [
+        "133/020000.png",
+        "133/020102.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020103.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020103",
+      "assets": [
+        "133/020000.png",
+        "133/020103.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020104.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020104",
+      "assets": [
+        "133/020000.png",
+        "133/020104.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020105.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020105",
+      "assets": [
+        "133/020000.png",
+        "133/020105.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020106.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020106",
+      "assets": [
+        "133/020000.png",
+        "133/020106.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020107.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020107",
+      "assets": [
+        "133/020000.png",
+        "133/020107.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020108.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020108",
+      "assets": [
+        "133/020000.png",
+        "133/020108.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020109.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020109",
+      "assets": [
+        "133/020000.png",
+        "133/020109.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020110.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020110",
+      "assets": [
+        "133/020000.png",
+        "133/020110.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020111.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020111",
+      "assets": [
+        "133/020000.png",
+        "133/020111.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020200.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020200",
+      "assets": [
+        "133/020000.png",
+        "133/020200.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020201.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020201",
+      "assets": [
+        "133/020000.png",
+        "133/020201.png"
+      ]
+    },
+    {
+      "paperId": "133",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020202.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-133-020000-020202",
+      "assets": [
+        "133/020000.png",
+        "133/020202.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-010001",
+      "assets": [
+        "144/010000.png",
+        "144/010001.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-010002",
+      "assets": [
+        "144/010000.png",
+        "144/010002.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-010003",
+      "assets": [
+        "144/010000.png",
+        "144/010003.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020000",
+      "assets": [
+        "144/010000.png",
+        "144/020000.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020001",
+      "assets": [
+        "144/010000.png",
+        "144/020001.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020002",
+      "assets": [
+        "144/010000.png",
+        "144/020002.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020003",
+      "assets": [
+        "144/010000.png",
+        "144/020003.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020100",
+      "assets": [
+        "144/010000.png",
+        "144/020100.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020101",
+      "assets": [
+        "144/010000.png",
+        "144/020101.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020102",
+      "assets": [
+        "144/010000.png",
+        "144/020102.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020103.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010000-020103",
+      "assets": [
+        "144/010000.png",
+        "144/020103.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010001-010002",
+      "assets": [
+        "144/010001.png",
+        "144/010002.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010001-010003",
+      "assets": [
+        "144/010001.png",
+        "144/010003.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010001.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010001-020000",
+      "assets": [
+        "144/010001.png",
+        "144/020000.png"
+      ]
+    },
+    {
+      "paperId": "144",
+      "category": "Blot/Gel",
+      "pair": "010001.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-144-010001-020001",
+      "assets": [
+        "144/010001.png",
+        "144/020001.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "050000.png 050202.png",
+      "expected": "positive",
+      "annotationPair": "050000.png 050202.png",
+      "annotationBoxes": [
+        [
+          [
+            11,
+            0,
+            115,
+            51
+          ]
+        ],
+        [
+          [
+            2,
+            2,
+            118,
+            53
+          ]
+        ]
+      ],
+      "id": "biofors-139-050000-050202",
+      "assets": [
+        "139/050000.png",
+        "139/050202.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "050003.png 050203.png",
+      "expected": "positive",
+      "annotationPair": "050003.png 050203.png",
+      "annotationBoxes": [
+        [
+          [
+            20,
+            1,
+            116,
+            49
+          ]
+        ],
+        [
+          [
+            1,
+            0,
+            117,
+            51
+          ]
+        ]
+      ],
+      "id": "biofors-139-050003-050203",
+      "assets": [
+        "139/050003.png",
+        "139/050203.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "050005.png 050204.png",
+      "expected": "positive",
+      "annotationPair": "050005.png 050204.png",
+      "annotationBoxes": [
+        [
+          [
+            8,
+            2,
+            96,
+            54
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            118,
+            53
+          ]
+        ]
+      ],
+      "id": "biofors-139-050005-050204",
+      "assets": [
+        "139/050005.png",
+        "139/050204.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "050006.png 050205.png",
+      "expected": "positive",
+      "annotationPair": "050006.png 050205.png",
+      "annotationBoxes": [
+        [
+          [
+            12,
+            14,
+            116,
+            53
+          ]
+        ],
+        [
+          [
+            1,
+            1,
+            117,
+            34
+          ]
+        ]
+      ],
+      "id": "biofors-139-050006-050205",
+      "assets": [
+        "139/050006.png",
+        "139/050205.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "050009.png 050206.png",
+      "expected": "positive",
+      "annotationPair": "050009.png 050206.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            1,
+            93,
+            54
+          ]
+        ],
+        [
+          [
+            25,
+            1,
+            117,
+            54
+          ]
+        ]
+      ],
+      "id": "biofors-139-050009-050206",
+      "assets": [
+        "139/050009.png",
+        "139/050206.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040001",
+      "assets": [
+        "139/040000.png",
+        "139/040001.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040002",
+      "assets": [
+        "139/040000.png",
+        "139/040002.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040003",
+      "assets": [
+        "139/040000.png",
+        "139/040003.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040004.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040004",
+      "assets": [
+        "139/040000.png",
+        "139/040004.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040005.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040005",
+      "assets": [
+        "139/040000.png",
+        "139/040005.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040006.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040006",
+      "assets": [
+        "139/040000.png",
+        "139/040006.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040000.png 040007.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040000-040007",
+      "assets": [
+        "139/040000.png",
+        "139/040007.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040001.png 040002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040001-040002",
+      "assets": [
+        "139/040001.png",
+        "139/040002.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040001.png 040003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040001-040003",
+      "assets": [
+        "139/040001.png",
+        "139/040003.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040001.png 040004.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040001-040004",
+      "assets": [
+        "139/040001.png",
+        "139/040004.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040001.png 040005.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040001-040005",
+      "assets": [
+        "139/040001.png",
+        "139/040005.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040001.png 040006.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040001-040006",
+      "assets": [
+        "139/040001.png",
+        "139/040006.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040001.png 040007.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040001-040007",
+      "assets": [
+        "139/040001.png",
+        "139/040007.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040002.png 040003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040002-040003",
+      "assets": [
+        "139/040002.png",
+        "139/040003.png"
+      ]
+    },
+    {
+      "paperId": "139",
+      "category": "Microscopy",
+      "pair": "040002.png 040004.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-139-040002-040004",
+      "assets": [
+        "139/040002.png",
+        "139/040004.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Microscopy",
+      "pair": "010001.png 010102.png",
+      "expected": "positive",
+      "annotationPair": "010001.png 010102.png",
+      "annotationBoxes": [
+        [
+          [
+            3,
+            1,
+            257,
+            194
+          ]
+        ],
+        [
+          [
+            2,
+            1,
+            256,
+            194
+          ]
+        ]
+      ],
+      "id": "biofors-829-010001-010102",
+      "assets": [
+        "829/010001.png",
+        "829/010102.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060001",
+      "assets": [
+        "829/060000.png",
+        "829/060001.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060002",
+      "assets": [
+        "829/060000.png",
+        "829/060002.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060003",
+      "assets": [
+        "829/060000.png",
+        "829/060003.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060004.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060004",
+      "assets": [
+        "829/060000.png",
+        "829/060004.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060005.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060005",
+      "assets": [
+        "829/060000.png",
+        "829/060005.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060100",
+      "assets": [
+        "829/060000.png",
+        "829/060100.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060101",
+      "assets": [
+        "829/060000.png",
+        "829/060101.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060102",
+      "assets": [
+        "829/060000.png",
+        "829/060102.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060103.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060103",
+      "assets": [
+        "829/060000.png",
+        "829/060103.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060104.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060104",
+      "assets": [
+        "829/060000.png",
+        "829/060104.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 060105.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-060105",
+      "assets": [
+        "829/060000.png",
+        "829/060105.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 070000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-070000",
+      "assets": [
+        "829/060000.png",
+        "829/070000.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 070001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-070001",
+      "assets": [
+        "829/060000.png",
+        "829/070001.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 070002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-070002",
+      "assets": [
+        "829/060000.png",
+        "829/070002.png"
+      ]
+    },
+    {
+      "paperId": "829",
+      "category": "Blot/Gel",
+      "pair": "060000.png 070003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-829-060000-070003",
+      "assets": [
+        "829/060000.png",
+        "829/070003.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010100.png",
+      "expected": "positive",
+      "annotationPair": "010000.png 010100.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            5,
+            106,
+            59
+          ]
+        ],
+        [
+          [
+            3,
+            4,
+            155,
+            58
+          ]
+        ]
+      ],
+      "id": "biofors-404-010000-010100",
+      "assets": [
+        "404/010000.png",
+        "404/010100.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010101.png 030003.png",
+      "expected": "positive",
+      "annotationPair": "010101.png 030003.png",
+      "annotationBoxes": [
+        [
+          [
+            11,
+            0,
+            153,
+            58
+          ]
+        ],
+        [
+          [
+            2,
+            0,
+            81,
+            27
+          ]
+        ]
+      ],
+      "id": "biofors-404-010101-030003",
+      "assets": [
+        "404/010101.png",
+        "404/030003.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010001",
+      "assets": [
+        "404/010000.png",
+        "404/010001.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010002",
+      "assets": [
+        "404/010000.png",
+        "404/010002.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010101",
+      "assets": [
+        "404/010000.png",
+        "404/010101.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010102",
+      "assets": [
+        "404/010000.png",
+        "404/010102.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010200.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010200",
+      "assets": [
+        "404/010000.png",
+        "404/010200.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010201.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010201",
+      "assets": [
+        "404/010000.png",
+        "404/010201.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010202.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010202",
+      "assets": [
+        "404/010000.png",
+        "404/010202.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010203.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-010203",
+      "assets": [
+        "404/010000.png",
+        "404/010203.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-020100",
+      "assets": [
+        "404/010000.png",
+        "404/020100.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-020101",
+      "assets": [
+        "404/010000.png",
+        "404/020101.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-020102",
+      "assets": [
+        "404/010000.png",
+        "404/020102.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020103.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-020103",
+      "assets": [
+        "404/010000.png",
+        "404/020103.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020104.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-020104",
+      "assets": [
+        "404/010000.png",
+        "404/020104.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-030000",
+      "assets": [
+        "404/010000.png",
+        "404/030000.png"
+      ]
+    },
+    {
+      "paperId": "404",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-404-010000-030001",
+      "assets": [
+        "404/010000.png",
+        "404/030001.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "060100.png 050000.png",
+      "expected": "positive",
+      "annotationPair": "050000.png 060100.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            54,
+            328,
+            108
+          ]
+        ],
+        [
+          [
+            3,
+            1,
+            288,
+            40
+          ]
+        ]
+      ],
+      "id": "biofors-590-060100-050000",
+      "assets": [
+        "590/060100.png",
+        "590/050000.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-010000-010001",
+      "assets": [
+        "590/010000.png",
+        "590/010001.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-010000-010100",
+      "assets": [
+        "590/010000.png",
+        "590/010100.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-010000-010101",
+      "assets": [
+        "590/010000.png",
+        "590/010101.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-010001-010100",
+      "assets": [
+        "590/010001.png",
+        "590/010100.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-010001-010101",
+      "assets": [
+        "590/010001.png",
+        "590/010101.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "010100.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-010100-010101",
+      "assets": [
+        "590/010100.png",
+        "590/010101.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "040200.png 010000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-040200-010000",
+      "assets": [
+        "590/040200.png",
+        "590/010000.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "040200.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-040200-010001",
+      "assets": [
+        "590/040200.png",
+        "590/010001.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "040200.png 010100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-040200-010100",
+      "assets": [
+        "590/040200.png",
+        "590/010100.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "040200.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-040200-010101",
+      "assets": [
+        "590/040200.png",
+        "590/010101.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "050000.png 010000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-050000-010000",
+      "assets": [
+        "590/050000.png",
+        "590/010000.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "050000.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-050000-010001",
+      "assets": [
+        "590/050000.png",
+        "590/010001.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "050000.png 010100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-050000-010100",
+      "assets": [
+        "590/050000.png",
+        "590/010100.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "050000.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-050000-010101",
+      "assets": [
+        "590/050000.png",
+        "590/010101.png"
+      ]
+    },
+    {
+      "paperId": "590",
+      "category": "Blot/Gel",
+      "pair": "050000.png 040200.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-590-050000-040200",
+      "assets": [
+        "590/050000.png",
+        "590/040200.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "FACS",
+      "pair": "060002.png 060006.png",
+      "expected": "positive",
+      "annotationPair": "060002.png 060006.png",
+      "annotationBoxes": [
+        [
+          [
+            5,
+            6,
+            186,
+            189
+          ]
+        ],
+        [
+          [
+            4,
+            3,
+            182,
+            181
+          ]
+        ]
+      ],
+      "id": "biofors-707-060002-060006",
+      "assets": [
+        "707/060002.png",
+        "707/060006.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "FACS",
+      "pair": "060003.png 060007.png",
+      "expected": "positive",
+      "annotationPair": "060003.png 060007.png",
+      "annotationBoxes": [
+        [
+          [
+            7,
+            8,
+            195,
+            193
+          ]
+        ],
+        [
+          [
+            7,
+            5,
+            194,
+            185
+          ]
+        ]
+      ],
+      "id": "biofors-707-060003-060007",
+      "assets": [
+        "707/060003.png",
+        "707/060007.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "FACS",
+      "pair": "060005.png 060007.png",
+      "expected": "positive",
+      "annotationPair": "060007.png 060005.png",
+      "annotationBoxes": [
+        [
+          [
+            18,
+            67,
+            63,
+            95
+          ]
+        ],
+        [
+          [
+            16,
+            53,
+            65,
+            82
+          ]
+        ]
+      ],
+      "id": "biofors-707-060005-060007",
+      "assets": [
+        "707/060005.png",
+        "707/060007.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010001",
+      "assets": [
+        "707/010000.png",
+        "707/010001.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010002",
+      "assets": [
+        "707/010000.png",
+        "707/010002.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010003",
+      "assets": [
+        "707/010000.png",
+        "707/010003.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010100",
+      "assets": [
+        "707/010000.png",
+        "707/010100.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010101",
+      "assets": [
+        "707/010000.png",
+        "707/010101.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010102",
+      "assets": [
+        "707/010000.png",
+        "707/010102.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010103.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-010103",
+      "assets": [
+        "707/010000.png",
+        "707/010103.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-030000",
+      "assets": [
+        "707/010000.png",
+        "707/030000.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-030001",
+      "assets": [
+        "707/010000.png",
+        "707/030001.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-030002",
+      "assets": [
+        "707/010000.png",
+        "707/030002.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010000-030003",
+      "assets": [
+        "707/010000.png",
+        "707/030003.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010001-010002",
+      "assets": [
+        "707/010001.png",
+        "707/010002.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010003.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010001-010003",
+      "assets": [
+        "707/010001.png",
+        "707/010003.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010001-010100",
+      "assets": [
+        "707/010001.png",
+        "707/010100.png"
+      ]
+    },
+    {
+      "paperId": "707",
+      "category": "Blot/Gel",
+      "pair": "010001.png 010101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-707-010001-010101",
+      "assets": [
+        "707/010001.png",
+        "707/010101.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020002.png 020102.png",
+      "expected": "positive",
+      "annotationPair": "020002.png 020102.png",
+      "annotationBoxes": [
+        [
+          [
+            126,
+            0,
+            366,
+            59
+          ]
+        ],
+        [
+          [
+            122,
+            1,
+            366,
+            66
+          ]
+        ]
+      ],
+      "id": "biofors-699-020002-020102",
+      "assets": [
+        "699/020002.png",
+        "699/020102.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "070001.png 070101.png",
+      "expected": "positive",
+      "annotationPair": "070101.png 070001.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            0,
+            180,
+            41
+          ]
+        ],
+        [
+          [
+            0,
+            1,
+            194,
+            39
+          ]
+        ]
+      ],
+      "id": "biofors-699-070001-070101",
+      "assets": [
+        "699/070001.png",
+        "699/070101.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "070004.png 070104.png",
+      "expected": "positive",
+      "annotationPair": "070004.png 070104.png",
+      "annotationBoxes": [
+        [
+          [
+            2,
+            2,
+            196,
+            26
+          ]
+        ],
+        [
+          [
+            0,
+            0,
+            180,
+            21
+          ]
+        ]
+      ],
+      "id": "biofors-699-070004-070104",
+      "assets": [
+        "699/070004.png",
+        "699/070104.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020000-020001",
+      "assets": [
+        "699/020000.png",
+        "699/020001.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020000-020002",
+      "assets": [
+        "699/020000.png",
+        "699/020002.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020000-020100",
+      "assets": [
+        "699/020000.png",
+        "699/020100.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020000-020101",
+      "assets": [
+        "699/020000.png",
+        "699/020101.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020000-020102",
+      "assets": [
+        "699/020000.png",
+        "699/020102.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020001.png 020002.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020001-020002",
+      "assets": [
+        "699/020001.png",
+        "699/020002.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020001.png 020100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020001-020100",
+      "assets": [
+        "699/020001.png",
+        "699/020100.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020001.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020001-020101",
+      "assets": [
+        "699/020001.png",
+        "699/020101.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020001.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020001-020102",
+      "assets": [
+        "699/020001.png",
+        "699/020102.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020002.png 020100.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020002-020100",
+      "assets": [
+        "699/020002.png",
+        "699/020100.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020002.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020002-020101",
+      "assets": [
+        "699/020002.png",
+        "699/020101.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020100.png 020101.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020100-020101",
+      "assets": [
+        "699/020100.png",
+        "699/020101.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020100.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020100-020102",
+      "assets": [
+        "699/020100.png",
+        "699/020102.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "020101.png 020102.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-020101-020102",
+      "assets": [
+        "699/020101.png",
+        "699/020102.png"
+      ]
+    },
+    {
+      "paperId": "699",
+      "category": "Blot/Gel",
+      "pair": "050000.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-699-050000-020000",
+      "assets": [
+        "699/050000.png",
+        "699/020000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "070000.png 020000.png",
+      "expected": "positive",
+      "annotationPair": "020000.png 070000.png",
+      "annotationBoxes": [
+        [
+          [
+            1,
+            14,
+            76,
+            44
+          ],
+          [
+            147,
+            14,
+            220,
+            44
+          ],
+          [
+            292,
+            13,
+            366,
+            44
+          ],
+          [
+            75,
+            12,
+            147,
+            43
+          ],
+          [
+            220,
+            12,
+            293,
+            44
+          ]
+        ],
+        [
+          [
+            1,
+            0,
+            78,
+            25
+          ],
+          [
+            77,
+            1,
+            150,
+            25
+          ]
+        ]
+      ],
+      "id": "biofors-794-070000-020000",
+      "assets": [
+        "794/070000.png",
+        "794/020000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010000.png 010001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010000-010001",
+      "assets": [
+        "794/010000.png",
+        "794/010001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010000-020000",
+      "assets": [
+        "794/010000.png",
+        "794/020000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010000.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010000-020001",
+      "assets": [
+        "794/010000.png",
+        "794/020001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010000-030000",
+      "assets": [
+        "794/010000.png",
+        "794/030000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010000.png 030001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010000-030001",
+      "assets": [
+        "794/010000.png",
+        "794/030001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010001.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010001-020000",
+      "assets": [
+        "794/010001.png",
+        "794/020000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010001.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010001-020001",
+      "assets": [
+        "794/010001.png",
+        "794/020001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010001.png 030000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010001-030000",
+      "assets": [
+        "794/010001.png",
+        "794/030000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "010001.png 030001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-010001-030001",
+      "assets": [
+        "794/010001.png",
+        "794/030001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "020000.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-020000-020001",
+      "assets": [
+        "794/020000.png",
+        "794/020001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "030000.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-030000-020000",
+      "assets": [
+        "794/030000.png",
+        "794/020000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "030000.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-030000-020001",
+      "assets": [
+        "794/030000.png",
+        "794/020001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "030000.png 030001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-030000-030001",
+      "assets": [
+        "794/030000.png",
+        "794/030001.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "030001.png 020000.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-030001-020000",
+      "assets": [
+        "794/030001.png",
+        "794/020000.png"
+      ]
+    },
+    {
+      "paperId": "794",
+      "category": "Blot/Gel",
+      "pair": "030001.png 020001.png",
+      "expected": "negative",
+      "annotationPair": null,
+      "annotationBoxes": null,
+      "id": "biofors-794-030001-020001",
+      "assets": [
+        "794/030001.png",
+        "794/020001.png"
+      ]
+    }
+  ]
+}
