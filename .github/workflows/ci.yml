@@ -28,6 +28,8 @@ jobs:
         run: npm run check
       - name: Run source tests
         run: npm test
+      - name: Evaluate controlled positive and negative cases
+        run: npm run evaluate
       - name: Run exact Harness native-tool smoke test
         run: npm run test:harness
       - name: Inspect the installable tarball

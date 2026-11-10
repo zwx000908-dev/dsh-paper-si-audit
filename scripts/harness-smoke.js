@@ -37,6 +37,10 @@ for (const y of ys) { context.beginPath(); context.moveTo(xs[0], y); context.lin
 context.font = '38px Arial';
 expectedTable.forEach((row, y) => row.forEach((text, x) => context.fillText(text, xs[x] + 30, ys[y] + 70)));
 await writeFile(path.join(sourceDir, 'table.png'), canvas.toBuffer('image/png'));
+const spectrumCanvas = createCanvas(1500, 400), spectrumContext = spectrumCanvas.getContext('2d');
+spectrumContext.fillStyle = 'white'; spectrumContext.fillRect(0, 0, 1500, 400); spectrumContext.fillStyle = 'black'; spectrumContext.font = '60px Arial';
+spectrumContext.fillText('Compound 3a', 40, 85); spectrumContext.fillText('1H NMR 400 MHz CDCl3', 40, 190); spectrumContext.fillText('Integral sum: 2 H', 40, 300);
+await writeFile(path.join(sourceDir, 'spectrum.png'), spectrumCanvas.toBuffer('image/png'));
 await writeFile(path.join(sourceDir, 'expected-table.json'), JSON.stringify(expectedTable));
 
 const removedData = path.join(base, 'removed-serve-must-not-create');

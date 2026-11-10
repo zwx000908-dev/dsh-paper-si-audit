@@ -34,6 +34,7 @@ export async function apply(ctx, config) {
   const sourceHash = createHash('sha256').update(await readFile(sourceImage)).digest('hex');
   await invoke('paper_audit_add_document', { projectId: project.id, filePath: sourceImage, role: 'si' });
   await invoke('paper_audit_add_document', { projectId: project.id, filePath: sourceImage, role: 'source' });
+  await invoke('paper_audit_add_document', { projectId: project.id, filePath: path.join(config.sourceDir, 'spectrum.png'), role: 'source' });
   const importedProject = await invoke('paper_audit_project', { projectId: project.id });
   const imageDocument = importedProject.documents.find(document => document.name === 'table.png');
   if (!imageDocument?.key) throw new Error('Imported image source key missing');
@@ -63,6 +64,19 @@ export async function apply(ctx, config) {
   }) });
   await invoke('paper_audit_hrms_configure', { projectId: project.id, formulaBasis: 'neutral', ppmTolerance: 5 });
   const provisionalRun = await invoke('paper_audit_run', { projectId: project.id });
+  const dossiers = await invoke('paper_audit_compounds', { projectId: project.id, runId: provisionalRun.id, records: true, limit: 100 });
+  const compoundRecord = dossiers.items.find(r => r.kinds.includes('h1_text'));
+  if (!compoundRecord) throw new Error('Native compound registry has no textual NMR record');
+  const spectrumDocument = importedProject.documents.find(d => d.name === 'spectrum.png');
+  const preparedSpectrum = await invoke('paper_audit_prepare_image_audit', { projectId: project.id, documentKey: spectrumDocument.key });
+  const panel = await invoke('paper_audit_extract_panels', { projectId: project.id, assetId: preparedSpectrum.selectedAssets[0].id, rectanglesJson: JSON.stringify([{ x: 20, y: 20, width: 1460, height: 350 }]) });
+  const spectrumReading = await invoke('paper_audit_read_spectrum', { projectId: project.id, runId: provisionalRun.id, recordId: compoundRecord.id, assetId: panel.assets[0].id });
+  if (spectrumReading.fields.integralSum !== 2 || spectrumReading.review.status !== 'needs_review') throw new Error('Native spectrum OCR did not retain a provisional explicit label');
+  await invoke('paper_audit_set_compound', { projectId: project.id, runId: provisionalRun.id, decisionJson: JSON.stringify({ compoundLabel: '3a', classification: 'new', links: [{ recordId: compoundRecord.id }], reason: 'Synthetic decision-state fixture only; not a decision about user research data' }) });
+  await invoke('paper_audit_set_requirements', { projectId: project.id, requirementsJson: JSON.stringify({ name: 'Synthetic lab checklist', version: '1', source_type: 'user_defined', rules: [{ classification: 'new', allOf: ['h1_text', 'c13_spectrum'] }] }) });
+  await invoke('paper_audit_scientific_configure', { projectId: project.id, optionsJson: '{}' });
+  const experimental = await invoke('paper_audit_calculate_experiment', { inputJson: JSON.stringify({ kind: 'yield', limitingAmountMmol: 0.2, productMassMg: 48, molarMassGmol: 300, stoichiometricFactor: 1, reportedYieldPercent: 90 }) });
+  if (experimental.calculated !== '80' || experimental.status !== 'needs_review') throw new Error('Native experimental yield arithmetic failed');
   if (provisionalRun.coverage.imageTables.provisionalTables !== 1 || provisionalRun.coverage.imageTables.acceptedTables !== 0) throw new Error('Unreviewed OCR was silently accepted');
   const review = await invoke('paper_audit_review_image_table', {
     projectId: project.id, tableId: table.id, status: 'accepted',
@@ -74,7 +88,7 @@ export async function apply(ctx, config) {
   if (!listedTables.items.some(t => t.id === table.id && t.active && t.review.status === 'accepted')) throw new Error('Table list lost accepted review state');
   const run = await invoke('paper_audit_run', { projectId: project.id });
   if (run.execution?.entryPoint !== 'harness_native_tools' || !run.execution.toolCallId) throw new Error('Native execution route or host tool-call reference was not recorded');
-  if (!run.id || run.documents.length !== 5 || run.factCount < 10 || run.issueCount < 2) {
+  if (!run.id || run.documents.length !== 6 || run.factCount < 10 || run.issueCount < 2) {
     throw new Error('Synthetic conflict fixture did not produce expected audit evidence');
   }
   if (run.coverage.imageTables.acceptedTables !== 1 || run.coverage.imageTables.provisionalTables !== 0 || run.coverage.hrms.calculatedRecords !== 1) throw new Error('Reviewed OCR or configured HRMS was not included in the native run');
@@ -93,7 +107,8 @@ export async function apply(ctx, config) {
   if (!reportText.includes('Paper–SI Audit') || !reportText.includes(run.id)) throw new Error('Report export invalid');
   const jsonReport = await invoke('paper_audit_export', { projectId: project.id, runId: run.id, format: 'json' });
   const exported = JSON.parse(await readFile(jsonReport.path, 'utf8'));
-  if (!exported.issues.some(i => i.category === 'image_duplicate' && i.calculation.kind === 'exact_pixels') || !exported.issues.some(i => i.category === 'nmr_formula' && i.evidenceStatus === 'needs_review') || run.coverage.imageDuplicates.comparedPairs !== 1 || !run.coverage.nmrFormula.comparedRecords) throw new Error('Native NMR and duplicate-image checks did not survive report export');
+  if (!exported.issues.some(i => i.category === 'image_duplicate' && i.calculation.kind === 'exact_pixels') || !exported.issues.some(i => i.category === 'nmr_formula' && i.evidenceStatus === 'needs_review') || run.coverage.imageDuplicates.comparedPairs < 1 || !run.coverage.nmrFormula.comparedRecords) throw new Error('Native NMR and duplicate-image checks did not survive report export');
+  if (!exported.compoundRegistry?.compounds.length || !exported.issues.some(i => i.category === 'nmr_image') || !exported.issues.some(i => i.category === 'compound_completeness')) throw new Error('Native dossier, spectrum comparison or checklist missing');
   if (exported.imageTables[0]?.review.status !== 'accepted' || exported.imageTables[0]?.rows[1].cells[2].originalOCRText !== '92' || !exported.facts.some(fact => fact.evidenceOrigin === 'image_table_ocr') || !exported.hrmsRecords.length) throw new Error('JSON export lost original OCR, user correction history, visual facts or HRMS records');
   if (createHash('sha256').update(await readFile(sourceImage)).digest('hex') !== sourceHash) throw new Error('Original synthetic image was modified');
 
@@ -106,6 +121,7 @@ export async function apply(ctx, config) {
     modelCalls: 0, syntheticDataOnly: true,
     exactMassCalculated: true, webPanelIncluded: false,
     nmrFormulaChecked: true, duplicateImagesChecked: true,
+    compoundRegistryChecked: true, panelExtractionChecked: true, spectrumLabelsCompared: true, experimentalYieldCalculated: true,
     imageTableOcr: { provider: table.provider, rows: table.rows.length, columns: table.rows[0].cells.length, sourceHash, rasterHash: asset.sha256, sourcePixels: [asset.imageWidth, asset.imageHeight], exactFixtureValuesChecked: 6, imageEvidenceRead: true, originalUnchanged: true, provisionalRunId: provisionalRun.id, acceptedInFinalRun: true, syntheticReviewTransition: true, humanReviewPerformed: false, imageDeliveredToModel: false },
   } }) + '\n'));
 }

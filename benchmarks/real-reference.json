@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "dataset": "user-paper-cs5c08928-reviewed-subset-v1",
+  "labelProvenance": "Assistant-curated from the user's earlier audit and direct source inspection; provisional reference labels, not independently expert-reviewed.",
+  "independentExpertReviewed": false,
+  "paperCount": 1,
+  "sourceHashes": {
+    "main": "85f993388d32e47cd5898454b28aeaca974b90b40f9f33c60d65a36b489c4056",
+    "si": "0b48f38203c869a68d96cd70eddde147d5e77a0df002222dd05847eaa961ccda"
+  },
+  "cases": [
+    { "id": "procedure-a-equivalent", "detector": "stoichiometry", "blockId": "doc-17e68b7fd18e3ac1cdd7:b23", "expected": "positive", "rationale": "0.20 mmol at 1 equiv and 3.0 mmol at 1.5 equiv differ by factor ten; a review concern, not a decision on which value to change." },
+    { "id": "procedure-b-equivalent", "detector": "stoichiometry", "blockId": "doc-17e68b7fd18e3ac1cdd7:b25", "expected": "positive", "rationale": "Same explicit amount/equivalent arithmetic conflict in method B." },
+    { "id": "10a-not-3a", "detector": "entity_attribution", "blockId": "doc-ae4ba488b431ddedf6ee:b5", "value": "76", "forbiddenEntity": "3a", "expected": "negative" },
+    { "id": "10b-not-3a", "detector": "entity_attribution", "blockId": "doc-ae4ba488b431ddedf6ee:b5", "value": "67", "forbiddenEntity": "3a", "expected": "negative" },
+    { "id": "11b-not-3a", "detector": "entity_attribution", "blockId": "doc-ae4ba488b431ddedf6ee:b5", "value": "65", "forbiddenEntity": "3a", "expected": "negative" },
+    { "id": "14a-not-3a", "detector": "entity_attribution", "blockId": "doc-ae4ba488b431ddedf6ee:b5", "value": "70", "forbiddenEntity": "3a", "expected": "negative" },
+    { "id": "12-not-3a", "detector": "entity_attribution", "blockId": "doc-ae4ba488b431ddedf6ee:b5", "value": "95", "forbiddenEntity": "3a", "expected": "negative" },
+    { "id": "5a-not-3a", "detector": "entity_attribution", "blockId": "doc-ae4ba488b431ddedf6ee:b5", "value": "71", "forbiddenEntity": "3a", "expected": "negative" },
+    { "id": "3a-h-basis", "detector": "nmr_formula", "entity": "3a", "nucleus": "1H", "expectedCount": 21, "expected": "unknown" },
+    { "id": "3a-c-basis", "detector": "nmr_formula", "entity": "3a", "nucleus": "13C", "expectedCount": 15, "expected": "unknown" },
+    { "id": "3b-h-basis", "detector": "nmr_formula", "entity": "3b", "nucleus": "1H", "expectedCount": 19, "expected": "unknown" },
+    { "id": "3b-c-basis", "detector": "nmr_formula", "entity": "3b", "nucleus": "13C", "expectedCount": 15, "expected": "unknown" },
+    { "id": "3a-spectrum-caption-frequency", "detector": "spectrum_label", "field": "frequencyMHz", "textValue": 600, "captionValue": 400, "expected": "positive", "rationale": "Characterization paragraph says 600 MHz, the uniquely located 1H spectrum caption says 400 MHz. Caption origin must remain explicit; this does not determine instrument truth." }
+  ]
+}

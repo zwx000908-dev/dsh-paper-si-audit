@@ -228,7 +228,7 @@ function rowsFromWords(words, grid, crop) {
 }
 
 /** Actual local OCR. Recognized cells are candidates, never automatically verified measurements. */
-export async function readImageTable({ imagePath, outputDir, tableId, crop: requestedCrop, signal } = {}) {
+export async function readImageTable({ imagePath, outputDir, tableId, crop: requestedCrop, signal, mode = 'table' } = {}) {
   if (tableId !== undefined && (typeof tableId !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(tableId))) fail('tableId must be a bounded safe identifier');
   const bytes = await inputBytes(imagePath), sourceSha256 = hash(bytes), image = await normalizedImage(bytes);
   if (!outputDir || !path.isAbsolute(outputDir)) fail('An absolute project-owned outputDir is required');
@@ -238,7 +238,7 @@ export async function readImageTable({ imagePath, outputDir, tableId, crop: requ
   const { createCanvas } = await import('@napi-rs/canvas'); const canvas = createCanvas(crop.width, crop.height), context = canvas.getContext('2d'); context.drawImage(image.canvas, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
   const grid = detectGrid(context, crop.width, crop.height);
   // Grid strokes interfere with glyph segmentation; retain original source/crop and record this preprocessing.
-  context.fillStyle = 'white'; for (const y of grid.horizontalLines) context.fillRect(0, Math.max(0, y - 2), crop.width, 5); for (const x of grid.verticalLines) context.fillRect(Math.max(0, x - 2), 0, 5, crop.height);
+  if (mode === 'table') { context.fillStyle = 'white'; for (const y of grid.horizontalLines) context.fillRect(0, Math.max(0, y - 2), crop.width, 5); for (const x of grid.verticalLines) context.fillRect(Math.max(0, x - 2), 0, 5, crop.height); }
   const id = tableId || makeID(sourceSha256, crop), imageFile = path.join(outputDir, `${makeID(sourceSha256, crop)}-ocr-input.png`);
   await writeFile(imageFile, canvas.toBuffer('image/png'));
   let worker, timeout, abort, cancelled = false;
@@ -253,13 +253,13 @@ export async function readImageTable({ imagePath, outputDir, tableId, crop: requ
     const work = (async () => {
       worker = await createWorker('eng', 1, { langPath, corePath: path.dirname(require.resolve('tesseract.js-core/package.json')), workerPath: require.resolve('tesseract.js/src/worker-script/node/index.js'), cacheMethod: 'none', gzip: true, errorHandler: error => { rejectLimit(new Error(String(error))); } });
       if (cancelled) { await worker.terminate(); throw new Error('OCR was cancelled during initialization'); }
-      signal?.throwIfAborted(); await worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK, preserve_interword_spaces: '1' });
+      signal?.throwIfAborted(); await worker.setParameters({ tessedit_pageseg_mode: mode === 'spectrum' ? PSM.AUTO : PSM.SINGLE_BLOCK, preserve_interword_spaces: '1' });
       return worker.recognize(imageFile, {}, { text: true, tsv: true, blocks: true });
     })();
     const recognized = await Promise.race([work, limit]);
     const words = wordsFromTsv(recognized.data.tsv); const layout = rowsFromWords(words, grid, crop);
     if (layout.layout !== 'detected_grid') notes.push('No reliable full grid was detected; each row contains positional word candidates and column semantics remain unverified.');
-    const result = { id, sourceSha256, imagePath: await realpath(imagePath), imageWidth: image.width, imageHeight: image.height, crop, rows: layout.rows, status: words.length && layout.rows.length ? 'needs_review' : 'failed', provider: { name: 'tesseract.js', language: 'eng', route: 'local_wasm', networkRequestsRequired: false }, layout: layout.layout, grid, words: words.map(w => ({ ...w, bbox: { ...w.bbox, x: w.bbox.x + crop.x, y: w.bbox.y + crop.y } })), rawText: recognized.data.text, notes, preprocessing: { gridLinesMasked: true, originalModified: false, inputPath: imageFile } };
+    const result = { id, sourceSha256, imagePath: await realpath(imagePath), imageWidth: image.width, imageHeight: image.height, crop, rows: layout.rows, status: words.length && layout.rows.length ? 'needs_review' : 'failed', provider: { name: 'tesseract.js', language: 'eng', route: 'local_wasm', networkRequestsRequired: false }, layout: layout.layout, grid, words: words.map(w => ({ ...w, bbox: { ...w.bbox, x: w.bbox.x + crop.x, y: w.bbox.y + crop.y } })), rawText: recognized.data.text, notes, preprocessing: { gridLinesMasked: mode === 'table', originalModified: false, inputPath: imageFile } };
     if (!words.length) result.notes.push('No readable words were recognized; the image/table has not been checked.');
     await writeFile(path.join(outputDir, `${makeID(sourceSha256, crop)}-table.json`), JSON.stringify(result, null, 2)); return result;
   } catch (error) {

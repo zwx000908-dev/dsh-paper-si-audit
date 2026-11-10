@@ -10,6 +10,13 @@ export function renderMarkdown(run, evidenceFrom) {
   const lines = ['# Paper–SI Audit 核对报告', '', `运行：${run.id}`, `日期：${run.createdAt}`, `插件版本：${run.engineVersion}`, `目标宿主：${run.hostTarget}`, `状态：${run.status}`, `执行入口：${run.execution?.entryPoint ?? 'legacy_unknown'}（入口标签不替代宿主工具调用日志）`, `模板：${line(run.profile.profile?.name)} / ${line(run.profile.profile?.version)}`, '', '在本次材料和已完成检查范围内报告结果；未告警不表示全文正确。', '语义核对：' + run.coverage.semanticStatus + '。精确引用匹配不等于科学判断成立。', '', '## 结果摘要', '', `共 ${summary.total} 条候选：数据 ${summary.byType.data ?? 0}、语义 ${summary.byType.semantic ?? 0}、对应待确认 ${summary.byType.alignment ?? 0}、覆盖 ${summary.byType.coverage ?? 0}、格式 ${summary.formatHints}。`, '格式提示按规则分组列于后文，不计为科学数据错误；完整逐条记录保留在 JSON/CSV 导出及项目台账中。', '', '## 覆盖范围', '', '| 文件 | 角色 | 解析状态 | 单位数 | 警告 |', '|---|---|---|---|---|', ...run.coverage.documents.map(d => `| ${line(d.name)} | ${d.role} | ${d.status} | ${d.parsedUnits}/${d.totalUnits} | ${line((d.warnings ?? []).join('; '))} |`), ''];
   if (run.coverage.unmatchedRuleIds?.length) lines.push(`**未命中任何事实的规则：${run.coverage.unmatchedRuleIds.map(line).join(', ')}。这些规则未完成实际字段检查，不能视为通过。**`, '');
   if (run.coverage.disabledRuleIds?.length) lines.push('停用规则：' + run.coverage.disabledRuleIds.map(line).join(', '), '');
+  if (run.scientificSettingsChangedSinceRun) lines.push('**化合物关联、科学检查设置或清单已更改；本报告为旧快照，请重新核对。**', '');
+  if (run.compoundRegistry) {
+    lines.push('## 化合物材料清单', '', '同号记录为候选关联；已读取不代表结构正确。未定位不等于作者未提供。', '', '| 化合物 | 类型 | 氢谱文字 | 碳谱文字 | HRMS文字 | 氢谱图 | 碳谱图 |', '|---|---|---|---|---|---|---|');
+    const labels = { parsed: '已读取', located_unread: '已定位/未完整读取', not_located: '未定位' };
+    for (const c of run.compoundRegistry.compounds) lines.push(`| ${line(c.label)} | ${line(c.classification)} | ${['h1_text', 'c13_text', 'hrms_text', 'h1_spectrum', 'c13_spectrum'].map(k => labels[c.materials[k].status]).join(' | ')} |`);
+    lines.push('', `清单来源：${line(run.compoundRegistry.requirements?.name ?? '尚未配置要求，仅列示材料状态')}。完整关联及引用见 JSON 或原生 compounds 工具。`, '');
+  }
   if (run.profileChangedSinceRun || run.hrmsSettingsChangedSinceRun || run.imageTablesChangedSinceRun || run.sourcesChangedSinceRun) lines.push('**当前项目已发生变更；本报告保留旧运行快照，需重新核对：** ' + [['模板', run.profileChangedSinceRun], ['HRMS 设置', run.hrmsSettingsChangedSinceRun], ['图像转录', run.imageTablesChangedSinceRun], ['已登记来源', run.sourcesChangedSinceRun]].filter(([, changed]) => changed).map(([label]) => label).join('、') + '。', '');
   lines.push('检查覆盖详情：', '', '```json', JSON.stringify(run.coverage, null, 2), '```', '', '## 数据、语义、实验对应与覆盖问题', '');
   for (const issue of run.issues.filter(i => i.type !== 'format')) {
@@ -22,6 +29,7 @@ export function renderMarkdown(run, evidenceFrom) {
       if (issue.suggestion) lines.push('建议：' + (typeof issue.suggestion === 'string' ? issue.suggestion : JSON.stringify(issue.suggestion)), '');
     } else for (const [label, value] of [['复算', issue.calculation], ['建议', issue.suggestion]]) if (value) lines.push(`${label}：${typeof value === 'string' ? value : JSON.stringify(value)}`, '');
     const used = new Set();
+    if (issue.previewPath) lines.push(`![疑似重复区域对照](<${issue.previewPath.replaceAll('\\', '/')}>)`, '', '红框为实际参与比较的区域；局部检测窗口不等于精确编辑边界。', '');
     for (const image of issue.imageEvidence ?? []) {
       lines.push(`图像证据：${line(image.name)} · ${line(image.locator?.label)} · ${image.assetId}`, '', `来源 SHA256：${image.sourceSha256}；图像 SHA256：${image.rasterSha256}`, '');
       if (image.path) lines.push(`[打开原图](<${image.path.replaceAll('\\', '/')}>)`, '');

@@ -53,3 +53,8 @@ test('separate NMR experiments are not summed together', () => {
   const r = run('Compound 3a: formula: C2H6O; 1H NMR (CDCl3) δ 1.0 (s, 6H). 1H NMR (DMSO) δ 2.0 (s, 6H).');
   assert.equal(r.records.length, 2); assert.equal(r.issues.length, 0);
 });
+test('real-paper solvent alias and subsequent fluorine NMR preserve carbon-only parsing', () => {
+  const r = run('Compound 3a: formula: C2H3F; 1H NMR (400 MHz, Chloroform-d) δ 3.0 (s, 3H). 13C NMR (101 MHz, CDCl3) δ 20.0, 30.0. 19F NMR (376 MHz) δ -100.0.');
+  assert.equal(r.records[0].solvent, 'CDCL3'); assert.equal(r.records[1].count, 2); assert.equal(r.issues.length, 0);
+});
+test('spectrum captions are not mistaken for incomplete peak listings', () => { assert.equal(run('1H NMR (400 MHz, CDCl3) Spectra of 3a').records.length, 0); });

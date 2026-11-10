@@ -1,3 +1,10 @@
+# 0.4.0 (development)
+
+- Add candidate compound dossiers, explicit evidence decisions and configurable material checklists.
+- Add registered panels, bounded local image comparisons, annotated evidence and cached continuation across pair batches.
+- Add explicit spectrum label/caption comparison, preserved OCR corrections, and declared experimental arithmetic.
+- Add scientific tolerance settings, synthetic evaluation and one-paper provisional reference cases; retain coverage and expert-review gaps.
+
 # 0.3.0 (development)
 
 - Add evidence-linked textual NMR/formula count screening.

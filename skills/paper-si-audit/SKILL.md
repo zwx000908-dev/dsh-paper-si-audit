@@ -36,10 +36,14 @@ host has not separately indexed this skill file.
 14. Configure ppm/mDa alert thresholds as explicit software/user settings, never invented journal requirements. Show recomputed values and deviations while retaining originals and unresolved formula assumptions.
 15. Export a report on request. Original source files remain read-only.
 16. NMR-formula checks run automatically on associated textual records. Inspect `coverage.nmrFormula` and `nmr_formula` issues, including insufficient integration/association and ambiguous ion formulas. 13C signal equality is not required; a compatible count does not confirm a structure. Image-only spectra are not automatically peak-picked.
-17. For image duplication requests, call `paper_audit_prepare_image_audit` for each selected source and follow `nextOffset`; then run the audit again. The limit is 200 active assets per run. Inspect `coverage.imageDuplicates`, including unread, stale, failed and truncated material. PDF whole-page comparisons do not cover isolated panels; import panel images when needed. Read both imageEvidence asset IDs with the visual-image tool. Similarity scores are heuristic distances, not probabilities or misconduct findings.
+17. For image duplication requests, call `paper_audit_prepare_image_audit` for each selected source and follow `nextOffset`; then run the audit again. Default limits are 1000 active assets and 2000 pair comparisons per run; follow nextPairOffset by running again in the same project. Inspect `coverage.imageDuplicates`, including unread, stale, failed and truncated material. Use extract_panels for explicit crops or heuristic whitespace segmentation. Local grid comparisons are bounded and can miss arbitrary crops/edits. Read both imageEvidence asset IDs with the visual-image tool. Similarity scores are heuristic distances, not probabilities or misconduct findings.
 
 This release has no web review panel or local HTTP server. It runs foreground
 native tools and an optional CLI. It does not independently call a model endpoint;
 use the model already selected in Harness, subject to its declared image capability,
 provider data handling and the user's document scope. Raw-spectrum validation,
 automatic structure confirmation and automatic Word rewriting are not provided.
+
+18. Inspect compound dossiers and material status before completeness judgments. Automatic same-label links are candidates; record only explicit user association decisions. Requirements must be user selected with their stated provenance. See docs/SCIENTIFIC-WORKFLOW.md.
+19. Spectrum OCR reads explicit labels and annotations. Separately cited source captions can supply fields with fieldOrigins=document_caption; never call them image OCR. Keep missing/ambiguous readings and preserve original OCR when the user explicitly corrects it.
+20. For experimental calculations, quote original source fields, declare molar mass and stoichiometric factor, and distinguish standalone arithmetic from validated source attribution.

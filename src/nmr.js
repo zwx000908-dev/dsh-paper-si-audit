@@ -9,7 +9,7 @@ const cite = (block, start = 0, end = block.text.length) => ({ blockId: block.id
 
 // Cross-paragraph association is restricted to explicitly named records followed
 // by analytical paragraphs. Unrelated prose, a new heading or document ends it.
-function recordsFor(document) {
+export function recordsFor(document) {
   const records = []; let current = null;
   for (const block of document.blocks ?? []) {
     if (block.metadata?.evidenceOrigin === 'image_table_ocr') { current = null; continue; }
@@ -39,12 +39,12 @@ function splitPeaks(text) {
   result.push(text.slice(start).trim().replace(/[.;]\s*$/, ''));
   return result.filter(Boolean);
 }
-function readSpectrum(text, nucleus) {
+export function readSpectrum(text, nucleus) {
   const delta = /(?:δ|\bdelta\b)\s*[:=]?\s*/i.exec(text);
   if (!delta) return { status: 'unsupported', reason: '缺少可识别的 δ 位移列表' };
   const peaks = splitPeaks(text.slice(delta.index + delta[0].length).trim());
   if (!peaks?.length) return { status: 'unsupported', reason: '峰列表为空或括号不完整' };
-  let count = 0;
+  let count = 0; const peakRecords = [];
   for (const peak of peaks) {
     const match = /^([+−-]?\d+(?:\.\d+)?)(?:\s*[–—-]\s*([+−-]?\d+(?:\.\d+)?))?\s*(?:\(([^()]*)\))?\s*$/.exec(peak);
     if (!match) return { status: 'unsupported', reason: '峰列表混有无法完整解释的文字、范围或注释' };
@@ -53,18 +53,27 @@ function readSpectrum(text, nucleus) {
       const integrals = [...annotations.matchAll(/(?:^|[,;\s])(\d+(?:\.\d+)?)\s*H\b/g)];
       if (integrals.length !== 1) return { status: 'unsupported', reason: '并非每组峰都有唯一的 nH 积分，未以部分积分代替总氢数' };
       count += Number(integrals[0][1]);
+      peakRecords.push({ shift: Number(match[1].replace('−', '-')), endShift: match[2] ? Number(match[2].replace('−', '-')) : null, integral: Number(integrals[0][1]) });
     } else {
       if (match[2]) return { status: 'unsupported', reason: '碳谱范围不能直接解释为碳信号数' };
       // A multiplet is one environment; a stated 2C contributes two atoms.
       const carbon = [...annotations.matchAll(/(?:^|[,;\s])(\d+)\s*C\b/g)];
       if (carbon.length > 1) return { status: 'unsupported', reason: '同一碳信号有多个碳数标注' };
       count += carbon.length ? Number(carbon[0][1]) : 1;
+      peakRecords.push({ shift: Number(match[1].replace('−', '-')), carbonCount: carbon.length ? Number(carbon[0][1]) : 1 });
     }
   }
-  return { status: 'parsed', count: Number(count.toFixed(6)), peakGroups: peaks.length };
+  return { status: 'parsed', count: Number(count.toFixed(6)), peakGroups: peaks.length, peaks: peakRecords };
 }
 
-export function checkNmr(documents, hrmsRecords = []) {
+export function nmrMetadata(text) {
+  const frequency = /(?<![\d.])(\d+(?:\.\d+)?)\s*MHz\b/i.exec(text);
+  const solvent = /\b(?:CDCl3|Chloroform[−-]d|DMSO[−-]?d6|CD3OD|D2O|C6D6|CD3CN|acetone[−-]?d6|THF[−-]?d8)\b/i.exec(text);
+  return { frequencyMHz: frequency ? Number(frequency[1]) : null, solvent: solvent ? /chloroform/i.test(solvent[0]) ? 'CDCL3' : solvent[0].toUpperCase().replace(/[−-]/g, '') : null };
+}
+
+export function checkNmr(documents, hrmsRecords = [], options = {}) {
+  const integralTolerance = options.nmrIntegralTolerance ?? 0.05;
   const issues = [], records = [];
   for (const document of documents) for (const group of recordsFor(document)) {
     const spectra = [], formulas = [];
@@ -74,11 +83,12 @@ export function checkNmr(documents, hrmsRecords = []) {
       headers.forEach((header, i) => {
         let stop = headers[i + 1]?.index ?? text.length;
         const tail = text.slice(header.index + header[0].length, stop);
-        const boundary = /\b(?:HRMS|(?:EI|ESI|APCI)-MS|MS|IR|mp|m\.p\.|(?:neutral\s+|molecular\s+)?formula)\b|分子式/i.exec(tail);
+        const boundary = /(?:19F|¹⁹F|31P|³¹P|11B|¹¹B|29Si)\s*NMR|\b(?:HRMS|(?:EI|ESI|APCI)-MS|MS|IR|mp|m\.p\.|(?:neutral\s+|molecular\s+)?formula)\b|分子式/i.exec(tail);
         if (boundary) stop = header.index + header[0].length + boundary.index;
         const nucleus = /1H|¹H/.test(header[0]) ? '1H' : '13C';
         const quotation = cite(block, start + header.index, start + stop);
-        spectra.push({ nucleus, ...readSpectrum(quotation.quote, nucleus), citation: quotation });
+        if (/\b(?:spectra|spectrum)\s+of\b/i.test(quotation.quote) && !/(?:δ|\bdelta\b)/i.test(quotation.quote)) return;
+        spectra.push({ nucleus, ...nmrMetadata(quotation.quote), ...readSpectrum(quotation.quote, nucleus), citation: quotation });
       });
       for (const match of text.matchAll(/(?:\b(?:neutral\s+(?:molecular\s+)?formula|molecular\s+formula|formula)|分子式)\s*[:=：]\s*([^\s,;]+)/gi)) {
         // Formula labels inside HRMS are handled by the existing ion-basis parser.
@@ -104,7 +114,7 @@ export function checkNmr(documents, hrmsRecords = []) {
         const expected = [...new Set(formulas.map(f => atoms === 'H' ? (f.counts.H ?? 0) + (f.counts['[1H]'] ?? 0) : Object.entries(f.counts).filter(([key]) => /^(?:C|\[\d+C\])$/.test(key)).reduce((sum, [, count]) => sum + count, 0)))];
         record.expectedCounts = expected;
         const uncertain = formulas.some(f => f.ambiguous) || new Set(formulas.map(f => f.formula)).size > 1;
-        const mismatch = spectrum.nucleus === '1H' ? expected.every(n => Math.abs(spectrum.count - n) > 0.05) : expected.every(n => spectrum.count > n);
+        const mismatch = spectrum.nucleus === '1H' ? expected.every(n => Math.abs(spectrum.count - n) > integralTolerance) : expected.every(n => spectrum.count > n);
         record.status = uncertain ? 'ambiguous' : mismatch ? 'needs_review' : 'compatible_count_only';
         if (mismatch || uncertain) {
           type = 'data'; title = uncertain ? '核磁与分子式的对应/离子口径待确认' : spectrum.nucleus === '1H' ? '氢谱报告积分总数与分子式不符' : '碳谱报告信号/标注碳数超过分子式碳数';
@@ -118,5 +128,5 @@ export function checkNmr(documents, hrmsRecords = []) {
       records.push(record);
     }
   }
-  return { issues, records, coverage: { status: records.length ? 'limited' : 'not_performed', recordCount: records.length, comparedRecords: records.filter(r => r.expectedCounts).length, insufficientRecords: records.filter(r => r.status === 'insufficient').length, ambiguousRecords: records.filter(r => r.status === 'ambiguous').length, note: 'Textual 1H integrals and 13C signal/annotated atom counts only. No raw spectrum peak picking, structure prediction, integration normalization or assignment confirmation. 1H equality tolerance: 0.05 H, software setting, not a journal rule. Unassociated paragraphs and image-only spectra remain unchecked.' } };
+  return { issues, records, coverage: { status: records.length ? 'limited' : 'not_performed', integralTolerance, recordCount: records.length, comparedRecords: records.filter(r => r.expectedCounts).length, insufficientRecords: records.filter(r => r.status === 'insufficient').length, ambiguousRecords: records.filter(r => r.status === 'ambiguous').length, note: 'Textual 1H integrals and 13C signal/annotated atom counts only. No raw spectrum peak picking, structure prediction, integration normalization or assignment confirmation. 1H equality tolerance is recorded separately as a software setting, not a journal rule. Unassociated paragraphs and image-only spectra remain unchecked.' } };
 }
