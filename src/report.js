@@ -8,6 +8,13 @@ export function summarizeIssues(issues) {
 export function renderMarkdown(run, evidenceFrom) {
   const summary = summarizeIssues(run.issues);
   const lines = ['# Paper–SI Audit 核对报告', '', `运行：${run.id}`, `日期：${run.createdAt}`, `插件版本：${run.engineVersion}`, `目标宿主：${run.hostTarget}`, `状态：${run.status}`, `执行入口：${run.execution?.entryPoint ?? 'legacy_unknown'}（入口标签不替代宿主工具调用日志）`, `模板：${line(run.profile.profile?.name)} / ${line(run.profile.profile?.version)}`, '', '在本次材料和已完成检查范围内报告结果；未告警不表示全文正确。', '语义核对：' + run.coverage.semanticStatus + '。精确引用匹配不等于科学判断成立。', '', '## 结果摘要', '', `共 ${summary.total} 条候选：数据 ${summary.byType.data ?? 0}、语义 ${summary.byType.semantic ?? 0}、对应待确认 ${summary.byType.alignment ?? 0}、覆盖 ${summary.byType.coverage ?? 0}、格式 ${summary.formatHints}。`, '格式提示按规则分组列于后文，不计为科学数据错误；完整逐条记录保留在 JSON/CSV 导出及项目台账中。', '', '## 覆盖范围', '', '| 文件 | 角色 | 解析状态 | 单位数 | 警告 |', '|---|---|---|---|---|', ...run.coverage.documents.map(d => `| ${line(d.name)} | ${d.role} | ${d.status} | ${d.parsedUnits}/${d.totalUnits} | ${line((d.warnings ?? []).join('; '))} |`), ''];
+  if (run.visualReviewsChangedSinceRun) lines.push('**视觉模型复核记录已更新，本报告为旧快照，请重新运行核对再导出。**', '');
+  if (run.visualReview) {
+    const v=run.visualReview.coverage;
+    lines.push('## 视觉 Agent 图片复核', '', `任务状态：${line(v.status)}；模型已记录观察 ${v.modelObservedPairs??0} 对；排队范围内未检查 ${v.uninspectedPairs??0} 对；科学验证通过数不由模型判定。`, '', '原图附件准备记录不证明模型真的理解图片；区域坐标通过校验也不证明内容重复。未发现对应不是无重复证明。范围外材料与源变化见覆盖详情。', '', '| 图片对任务 | 模型观察 | 模型路由 | 区域数 | 依据 |', '|---|---|---|---|---|');
+    for(const r of run.visualReview.records??[]) lines.push(`| ${r.taskId} | ${r.state}: ${r.record.observation.decision} | ${line(r.record.actor.provider)}/${line(r.record.actor.model)} | ${r.record.observation.regions.length} | ${line(r.record.observation.reason)} |`);
+    lines.push('');
+  }
   if (run.coverage.unmatchedRuleIds?.length) lines.push(`**未命中任何事实的规则：${run.coverage.unmatchedRuleIds.map(line).join(', ')}。这些规则未完成实际字段检查，不能视为通过。**`, '');
   if (run.coverage.disabledRuleIds?.length) lines.push('停用规则：' + run.coverage.disabledRuleIds.map(line).join(', '), '');
   if (run.scientificSettingsChangedSinceRun) lines.push('**化合物关联、科学检查设置或清单已更改；本报告为旧快照，请重新核对。**', '');

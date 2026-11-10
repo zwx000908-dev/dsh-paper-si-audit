@@ -116,7 +116,7 @@ test('DSH 0.2.2-rc.1 real Cordis/Tools registration, operation, and disposal smo
   await ctx.plugin(ToolsService);
   const native = await ctx.plugin(plugin, { dataDir: path.join(root, 'audit'), allowedRoots: [sources] });
   const names = ctx.tools.schemas().map(tool => tool.name);
-  assert.equal(names.length, plugin.createToolDefinitions({}).length); assert.equal(names.length, 41); assert.ok(names.includes('paper_audit_prepare_image_audit')); assert.ok(names.includes('paper_audit_submit_semantic'));
+  assert.equal(names.length, plugin.createToolDefinitions({}).length); assert.equal(names.length, 45); assert.ok(names.includes('paper_audit_prepare_image_audit')); assert.ok(names.includes('paper_audit_submit_semantic'));
   const project = await ctx.tools.get('paper_audit_create').execute({ name: 'native test' }, exec());
   assert.ok(project.id);
   const imported = await ctx.tools.get('paper_audit_add_document').execute({ projectId: project.id, filePath: path.join(sources, 'main.txt'), role: 'main' }, exec());

@@ -1,3 +1,4 @@
+import { visualReviewAction, deliverVisualPair, submitVisualResult, visualReviewSnapshot, readVisualComparison } from './visual-review.js';
 import { IMAGE_TYPES, IMAGE_RULE_VERSION } from './image-rules.js';
 import { buildReviewGroups } from './review-groups.js';
 import { readFile, writeFile, mkdir, readdir, realpath, rename, open, unlink } from 'node:fs/promises';
@@ -418,10 +419,14 @@ export class AuditService {
       const spectrumReadings = await this.getSpectrumReadings({ projectId });
       const registry = buildCompoundRegistry(documents, { nmrRecords: nmr.records, hrmsRecords: hrms.records, assets: currentAssets, decisions: p.compoundDecisions ?? [], requirements: p.requirements ?? null, spectrumReadings });
       const spectra = checkSpectrumReadings(spectrumReadings, registry, nmr.records, currentAssets, scientificOptions);
+      const visualReview = await visualReviewSnapshot(this,projectId);
       const rank = i => ({ high: 0, medium: 1, low: 2 }[i.severity] ?? 3) * 10 + ({ data: 0, semantic: 1, alignment: 2, coverage: 3, format: 4 }[i.type] ?? 5);
-      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues, ...nmr.issues, ...duplicates.issues, ...registry.issues, ...experimental.issues, ...spectra.issues, ...prose.issues, ...cross.issues].sort((a, b) => rank(a) - rank(b));
+      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues, ...nmr.issues, ...duplicates.issues, ...registry.issues, ...experimental.issues, ...spectra.issues, ...prose.issues, ...cross.issues, ...visualReview.issues].sort((a, b) => rank(a) - rank(b));
       const execution = { entryPoint: this.executionPath, recordedBy: 'entrypoint-declared; confirm native calls in host logs', ...(this.executionPath === 'harness_native_tools' && executionEvidence ? { toolName: executionEvidence.toolName ?? 'paper_audit_run', toolCallId: typeof executionEvidence.toolCallId === 'string' ? executionEvidence.toolCallId : null } : {}) };
       const coverage = { ...result.coverage, hrms: hrms.coverage, imageTables: visualCoverage, stoichiometry: stoichiometry.coverage, semanticStatus: 'not_run', missingRoles: ['main', 'si'].filter(role => !documents.some(d => d.role === role)), documents: documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage })) };
+      coverage.visualAgentReview = visualReview.coverage;
+      if (visualReview.coverage.currentSourceModelObservedPairs) coverage.completedChecks.push('visual_model_observations_not_scientific_verification');
+      if (visualReview.coverage.status !== 'completed' || visualReview.coverage.decisionCounts?.uncertain) coverage.incompleteChecks.push('visual_model_image_review_scope');
       coverage.nmrFormula = nmr.coverage; coverage.imageDuplicates = duplicates.coverage;
       coverage.compounds = registry.coverage;
       coverage.crossReferences = cross.coverage; coverage.experimentalProse = prose.coverage;
@@ -443,6 +448,7 @@ export class AuditService {
       if (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked')) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
       if (visualCoverage.activeTables) { coverage.completedChecks.push('selected_image_table_ocr'); if (visualCoverage.provisionalTables || visualCoverage.staleTables.length || visualCoverage.failedTables.length) coverage.incompleteChecks.push('image_table_transcription_review'); }
       const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(p.profile), profileRevision: p.profileRevision, hrmsOptions: structuredClone(p.hrmsOptions ?? DEFAULT_HRMS), hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
+      run.visualReview = visualReview; run.visualReviewRevision = p.visualReviewRevision ?? 0;
       run.crossReferences = cross; run.experimentalProseRecords = prose.records; run.experimentalMethods = prose.methods;
       run.reviewGroups = buildReviewGroups(run);
       run.materialReadings = await this.getMaterialReadings({ projectId });
@@ -475,6 +481,10 @@ export class AuditService {
       return { ...run, reviews: [] };
     });
   }
+  async readVisualComparison(args) { return readVisualComparison(this,args); }
+  async visualReview(args) { return visualReviewAction(this,args); }
+  async deliverVisualPair(args,deliver) { return deliverVisualPair(this,args,deliver); }
+  async submitVisualResult(args,actor) { return submitVisualResult(this,args,actor); }
   async setImageType({ projectId, assetId, type, reason }) {
     if (!IMAGE_TYPES.includes(type) || typeof reason !== 'string' || !reason.trim() || reason.length > 4000) throw new Error('Valid image type and explicit user reason required');
     return this.locked(projectId, async () => {
@@ -553,6 +563,7 @@ export class AuditService {
     const issues = [...run.issues, ...semantic];
     if (run.reviewGroups && semantic.length) run.reviewGroups = { ...run.reviewGroups, ungroupedIssueIds: [...new Set([...run.reviewGroups.ungroupedIssueIds, ...semantic.map(i => i.id)])] };
     const physicalDocs = run.documents.filter(d => !['image_table', 'material_ocr'].includes(d.format));
+    run.visualReviewsChangedSinceRun = (p.visualReviewRevision ?? 0) !== (run.visualReviewRevision ?? 0);
     run.scientificSettingsChangedSinceRun = (p.scientificRevision ?? 0) !== (run.scientificRevision ?? 0);
     return { ...run, execution: run.execution ?? { entryPoint: 'legacy_unknown', recordedBy: 'not recorded in original run' }, issues, issueSummary: summarizeIssues(issues), reviews, coverage: { ...run.coverage, semanticStatus: semantic.length ? 'candidates_submitted_not_exhaustive' : 'not_run' }, profileChangedSinceRun: p.profileRevision !== run.profileRevision, hrmsSettingsChangedSinceRun: (p.hrmsRevision ?? 0) !== (run.hrmsRevision ?? 0), imageTablesChangedSinceRun: (p.visualRevision ?? 0) !== (run.visualRevision ?? 0), sourcesChangedSinceRun: signature(p.documents) !== signature(physicalDocs) };
   }
@@ -610,6 +621,7 @@ export class AuditService {
     else if (format === 'csv') {
       const ledger = run.revisionLedger?.items ?? [];
       const rows = run.issues.map(i => { const r = run.reviews.filter(r => r.issueId === i.id).at(-1), t = ledger.find(t => t.currentIssueId === i.id); return [i.id, i.type, i.severity, i.evidenceStatus, i.title, i.description, i.evidenceIds.join(';'), r?.status, r?.reason, i.category, i.calculation ? JSON.stringify(i.calculation) : '', i.imageEvidence ? JSON.stringify(i.imageEvidence) : '', i.citations ? JSON.stringify(i.citations) : '', t?.id, t?.state, t?.originRunId]; });
+      for (const r of run.visualReview?.records ?? []) if (r.state === 'submitted' && r.record.observation.decision === 'no_correspondence') rows.push([r.record.id, 'model_observation', '', 'not_scientifically_verified', '视觉模型未发现对应', r.record.observation.reason, '', '', '', 'visual_duplicate_observation', JSON.stringify(r.record), JSON.stringify(r.assetIds), '', '', '', '']);
       for (const t of ledger.filter(t => !t.currentIssueId)) rows.push([t.originIssueId, 'revision', '', t.state, t.title, 'Historical issue tracked across revisions; disappearance is not closure.', t.currentCitations.map(c => c.blockId).join(';'), t.closure?.status, t.closure?.reason, 'revision', '', '', JSON.stringify(t.currentCitations), t.id, t.state, t.originRunId]);
       content = [['id', 'type', 'severity', 'evidence_status', 'title', 'description', 'evidence', 'latest_review', 'reason', 'category', 'calculation_json', 'image_evidence_json', 'citations_json', 'tracking_id', 'revision_state', 'origin_run_id'], ...rows].map(row => row.map(csv).join(',')).join('\r\n');
     }

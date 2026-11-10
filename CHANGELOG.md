@@ -1,6 +1,16 @@
 # 0.6.0 (development)
 
 
+## 0.8.0 — Visual-agent review workflow
+
+- Schedule persisted image-pair and within-image review independently of pixel-detector hits, with explicit exclusions, batches, restart, retry and cancellation.
+- Deliver paired originals and detail crops through the active Harness vision model route; reject observations without a real receipt or with invalid source coordinates.
+- Preserve model type proposals, corresponding features, transformations and uncertainty separately from human decisions; generate viewable annotated comparisons and retain correction history.
+- Include model observations and remaining coverage in reports and shared-evidence groups; source changes invalidate old work.
+- Add label-withheld multi-paper task preparation and program/vision/combined evaluation scripts. Model accuracy remains unmeasured; simulated positive responses and no-model host tests are not scientific performance evidence.
+- Expose 45 tools; keep Harness 0.2.2-rc.1 and stable v0.2.0 unchanged.
+
+
 ## 0.7.0 — Typed image screening and evidence-based review groups
 
 - Separate image policies for nine types; preserve explicit user classifications, per-type overrides, hashes and resumable-batch invalidation.

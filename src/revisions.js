@@ -15,7 +15,8 @@ function evidence(run, issue) {
 }
 function describe(run, issue) {
   const sources = evidence(run, issue);
-  const anchor = digest([issue.category ?? issue.type, issue.title, issue.ruleId, sources.map(s => [s.sourceKey, s.shape, s.field, s.entity])]);
+  const imageAnchors = (issue.imageEvidence ?? []).map(e => [e.assetId, e.sourceSha256, e.rasterSha256]).sort((a,b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  const anchor = digest([issue.category ?? issue.type, issue.title, issue.ruleId, sources.map(s => [s.sourceKey, s.shape, s.field, s.entity]), ...(imageAnchors.length ? [imageAnchors] : [])]);
   return { anchor, sources };
 }
 export function buildRevisionLedger(run, previous) {

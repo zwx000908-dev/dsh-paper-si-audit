@@ -59,6 +59,13 @@ automatic structure confirmation and automatic Word rewriting are not provided.
 使用 experiments 检查字段来源、方法引用和缺项类型。明确条件复算与 conditionalCalculations 必须分开报告；1-equiv 基准候选和假设 1:1 均不等于已确认限制试剂/计量。优先使用已有产物 mmol。摩尔质量由固定标准原子量与明确中性式计算，不使用 HRMS m/z；离子口径歧义保留候选。experiment_context 仅记录用户明确的解释，模型不得自行确认；保存后重新运行，原件改变使确认失效。见 docs/EXPERIMENTS-0.6.md。
 
 
-For typed duplicate screening, use `paper_audit_set_image_type` only for an explicit user classification. Unknown/spectrum/chart/table/scheme/mixed-page images default to exact-only; no-match is not evidence of unique scientific content. Inspect the per-type scope. The external BioFors baseline found zero of 22 annotated positives: always disclose limited sensitivity rather than declaring image integrity.
+For typed duplicate screening, use `paper_audit_set_image_type` only for an explicit user classification. Unknown/spectrum/chart/table/scheme/mixed-page images default to exact-only; no-match is not evidence of unique scientific content. Inspect the per-type scope. The old pixel-only external BioFors baseline found zero of 22 annotated positives (not a visual-model result): always disclose limited sensitivity rather than declaring image integrity.
 
 Use `paper_audit_review_groups` to read shared-source dependencies and per-record exceptions. A method-level user interpretation still requires exact citations and a rerun. Grouping never authorizes blanket formulas, mass edits, or closure of every member.
+
+
+## Visual-agent workflow
+
+For requested duplicate-image review, after preparing source images start `paper_audit_visual_review`. The queue is independent of pixel matches. Use `paper_audit_visual_pair` to receive BOTH actual images on the active image-capable model route; do not claim inspection if delivery failed or attachments are not visible. Request detail crops; record uncertainty rather than guessing unreadable content. `paper_audit_submit_visual` accepts your model observation with the real receipt, source-pixel region pairs and matching features. Shared axes/layout alone cannot substantiate scientific duplication. Type candidates remain unconfirmed.
+
+Inspect every positive/reuse region with `paper_audit_visual_comparison`. Correct a bad interpretation by reopening that task with a reason, redelivering originals and submitting a new observation; previous versions remain. Follow pending tasks and report exclusions; do not endlessly retry an unchanged unsupported image route. Rerun the audit before exporting. Model observations never count as human confirmation or scientific verification. The old BioFors pixel result is not a measure of the new model workflow. See docs/VISUAL-AGENT-0.8.md for scope, budgets, coordinates and evaluation.

@@ -156,6 +156,18 @@ export async function apply(ctx, config) {
   const molar = await invoke('paper_audit_calculate_experiment', { inputJson: JSON.stringify({ kind: 'molar_mass', neutralFormula: 'C2H6O' }) });
   if (molar.molarMassGmol !== '46.069') throw new Error('Native standard molar mass failed');
 
+  const visualJob = await invoke('paper_audit_visual_review', { projectId: project.id, action: 'start', optionsJson: JSON.stringify({ assetIds: [asset.id, duplicatePrepared.selectedAssets[0].id], includeSelf: false }) });
+  const unavailablePair = await invoke('paper_audit_visual_pair', { projectId: project.id, jobId: visualJob.jobId });
+  if (unavailablePair.imageDelivered || !unavailablePair.reason) throw new Error('No-model native smoke must not pretend visual model inspection');
+  const visualBlocked = await invoke('paper_audit_visual_review', { projectId: project.id, jobId: visualJob.jobId });
+  if (visualBlocked.counts.failed !== 1 || visualBlocked.nextAction !== 'retry_failed') throw new Error('Native visual failure did not persist');
+  const refusedVisual = await ctx.tools.execute({ calls: [{ type: 'tool-call', id: 'visual-invalid-fixture', name: 'paper_audit_submit_visual', arguments: JSON.stringify({ projectId: project.id, jobId: visualJob.jobId, taskId: unavailablePair.taskId, receiptId: 'invented', resultJson: '{}' }) }], signal: new AbortController().signal });
+  if (!refusedVisual.results[0]?.result?.isError) throw new Error('Visual result without delivery was accepted');
+  const refusedComparison = await ctx.tools.execute({ calls: [{ type: 'tool-call', id: 'visual-comparison-invalid-fixture', name: 'paper_audit_visual_comparison', arguments: JSON.stringify({ projectId: project.id, jobId: visualJob.jobId, taskId: unavailablePair.taskId }) }], signal: new AbortController().signal });
+  if (!refusedComparison.results[0]?.result?.isError) throw new Error('Unsubmitted comparison was exposed as verified evidence');
+  await invoke('paper_audit_visual_review', { projectId: project.id, jobId: visualJob.jobId, action: 'retry_failed' });
+  await invoke('paper_audit_visual_review', { projectId: project.id, jobId: visualJob.jobId, action: 'cancel' });
+
   // Emit only after this apply returns, so Loader can finish this probe's activation.
   setImmediate(() => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'paper-audit.smoke', params: {
     passed: true, nativeToolCount: expectedToolNames.length, projectId: project.id, runId: run.id,
@@ -163,6 +175,7 @@ export async function apply(ctx, config) {
     engineVersion: run.engineVersion, execution: run.execution,
     evidenceRead: true, reportExported: true, semanticStatus: run.coverage.semanticStatus,
     modelCalls: 0, syntheticDataOnly: true,
+    visualAgentQueueChecked: true, visualDeliveryFailureChecked: true, visualFakeReceiptRejected: true, realVisionModelCalls: 0,
     imageTypePolicyChecked: true, commonCauseGroupsChecked: true, generalProcedureContextChecked: true, directMolarYieldChecked: true, standardMolarMassChecked: true,
     crossReferencesChecked: true, proseExtractionChecked: true, revisionRevalidationChecked: true, wholeProjectWorkflowChecked: true,
     exactMassCalculated: true, webPanelIncluded: false,

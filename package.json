@@ -1,6 +1,6 @@
 {
   "name": "dsh-paper-si-audit",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Evidence-grounded manuscript and supplementary information audit for DeepSeek Harness",
   "repository": {
     "type": "git",
@@ -50,7 +50,9 @@
     "scripts/evaluate.js",
     "scripts/check-syntax.js",
     "scripts/evaluate-external.js",
-    "scripts/fetch-biofors.py"
+    "scripts/fetch-biofors.py",
+    "scripts/evaluate-visual.js",
+    "scripts/prepare-visual-benchmark.js"
   ],
   "dsh": {
     "bundle": {
@@ -65,7 +67,9 @@
     "doctor": "node scripts/doctor-harness.js",
     "pack:verify": "node scripts/pack-release.js",
     "evaluate": "node scripts/evaluate.js",
-    "evaluate:external": "node scripts/evaluate-external.js"
+    "evaluate:external": "node scripts/evaluate-external.js",
+    "evaluate:visual": "node scripts/evaluate-visual.js",
+    "benchmark:visual:prepare": "node scripts/prepare-visual-benchmark.js"
   },
   "engines": {
     "node": ">=24.9.0",

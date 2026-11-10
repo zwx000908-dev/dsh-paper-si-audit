@@ -25,7 +25,7 @@ export function buildReviewGroups(run) {
     }
   }
   for (const issue of run.issues.filter(i => i.type === 'format')) add(['format', issue.ruleId, issue.title], { kind: 'shared_format_rule', confidence: 'same_rule_not_proven_same_error', title: `格式规则 ${issue.ruleId ?? issue.title}`, commonCitations: [], nextAction: 'Verify the user-defined template before editing individual source values. Formatting is not a scientific error.' }, issue.id);
-  for (const issue of run.issues.filter(i => i.category === 'image_duplicate')) {
+  for (const issue of run.issues.filter(i => ['image_duplicate','visual_duplicate'].includes(i.category))) {
     const ids = [...new Set((issue.imageEvidence ?? []).map(e => e.assetId))].sort();
     add(['image_pair', ...ids], { kind: 'same_image_pair', confidence: 'same_evidence_pair', title: '同一图像对的重复候选', assetIds: ids, commonCitations: [], nextAction: 'Review type, original locations and legitimate reuse. Different image pairs are not merged transitively.' }, issue.id);
   }
