@@ -67,7 +67,17 @@ export function renderMarkdown(run, evidenceFrom) {
     lines.push('');
   }
   if (run.crossReferences) lines.push('## 图表与结论交叉核对', '', `定位图注 ${run.crossReferences.coverage.definitions}；引用 ${run.crossReferences.coverage.references}；数值比较 ${run.crossReferences.coverage.checked}；信息不足 ${run.crossReferences.coverage.insufficient}。图中曲线、结构和任意语义结论不属于自动数值核验。`, '');
-  if (run.experimentalProseRecords?.length) lines.push('## 实验叙述解析', '', `提取 ${run.experimentalProseRecords.length} 组局部记录；可复算 ${run.experimentalProseRecords.filter(r => r.calculation).length} 组。缺少摩尔质量、限制试剂或计量关系时保留缺项，不默认 1:1。完整输入与引用见 JSON/原生 experiments 工具。`, '');
+  if (run.experimentalProseRecords?.length) {
+    const records = run.experimentalProseRecords, checked = records.filter(r => r.calculation).length, conditional = records.filter(r => r.status === 'conditional').length;
+    const gapLabels = { not_found_in_checked_scope: '已检查原文未找到', not_linked: '程序尚未关联', ambiguous: '存在多个解释' };
+    lines.push('## 实验叙述解析与复算', '', `提取 ${records.length} 组检查记录（不等于独立实验数）；明确条件复算 ${checked} 组，条件性复算 ${conditional} 组，无法计算 ${records.filter(r => r.status === 'insufficient').length} 组。条件性结果不代表通过，1 equiv 不自动等于限制试剂，假设 1:1 不等于已证实计量。`, '', '| 记录 | 化合物 | 类型 | 状态 | 计算结果 | 缺项或限制 |', '|---|---|---|---|---|---|');
+    for (const r of records) {
+      const results = r.calculation ? `${shortNumber(r.calculation.calculated)} ${r.calculation.unit}` : (r.conditionalCalculations ?? []).map(c => `${shortNumber(c.calculation.calculated)} ${c.calculation.unit}`).join(' / ');
+      const gaps = [...new Set((r.gaps ?? []).map(g => `${gapLabels[g.type] ?? g.type}: ${g.field ?? g.code}`))].join('; ');
+      lines.push(`| ${r.id} | ${line(r.entity ?? '未唯一归属')} | ${r.kind} | ${r.status} | ${line(results || '未计算')} | ${line(gaps)} |`);
+    }
+    lines.push('', '每种解释的公式、输入、标准原子量来源、通用方法引用和用户确认历史保存在 JSON/原生 experiments 工具中。已检查范围未找到不代表整篇文献中没有。', '');
+  }
   if (run.workflow) lines.push('整篇任务：' + run.workflow.jobId + '；已登记任务 ' + run.workflow.tasks.length + '；执行失败 ' + run.workflow.failures.length + '。任务明细及检查点保存在 JSON 和 workflow 工具中。', '');
   if (run.materialReadings?.length) lines.push('## 整篇图像文字读取', '', `已保存 ${run.materialReadings.length} 份 OCR 记录，均保留未确认标记；读取文字不代表完成表格、谱线或结构验证。失败和未覆盖内容见覆盖记录。`, '');
   if (run.revisionLedger) {

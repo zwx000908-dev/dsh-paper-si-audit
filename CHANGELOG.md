@@ -1,3 +1,11 @@
+# 0.6.0 (development)
+
+- Link explicitly referenced general methods with source citations and override/ambiguity handling.
+- Add direct mmol yield calculations and standard-composition molar mass from pinned CIAAW atomic weights.
+- Link local concentration reference candidates; separate conditional scenarios from explicit-input checks.
+- Distinguish missing-in-scope, unlinked and ambiguous fields; refine purity detection.
+- Add source-bound explicit user experimental context decisions; invalidate on source changes.
+
 # 0.5.0 (development)
 
 - Add explicit table/figure reference checks and supported quantitative table comparisons.

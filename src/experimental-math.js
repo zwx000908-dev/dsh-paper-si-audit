@@ -2,6 +2,7 @@ import Decimal from 'decimal.js';
 import { createHash } from 'node:crypto';
 import { recordsFor } from './nmr.js';
 import { validateScientificConfig } from './scientific-config.js';
+import { calculateMolarMass } from './molar-mass.js';
 const D = Decimal.clone({ precision: 40 });
 const hash = (...v) => createHash('sha256').update(JSON.stringify(v)).digest('hex').slice(0, 24);
 const NUM = '[+]?\\d+(?:\\.\\d+)?(?:[eE][+-]?\\d{1,2})?';
@@ -12,11 +13,14 @@ function number(v, key, allowZero = false) {
 export function calculateExperiment(input, options = {}) {
   const config = validateScientificConfig(options);
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new Error('Experimental input must be an object');
-  const allowed = { yield: ['limitingAmountMmol', 'productMassMg', 'molarMassGmol', 'stoichiometricFactor', 'reportedYieldPercent'], mass_amount: ['massMg', 'amountMmol', 'molarMassGmol'], concentration: ['concentrationM', 'volumeMl', 'amountMmol'] }[input.kind];
+  if (input.kind === 'molar_mass') { if (Object.keys(input).some(k => !['kind', 'neutralFormula'].includes(k))) throw new Error('Unknown molar mass fields'); return { kind: 'molar_mass', ...calculateMolarMass(input.neutralFormula) }; }
+  const allowed = { yield: ['limitingAmountMmol', 'productMassMg', 'molarMassGmol', 'stoichiometricFactor', 'reportedYieldPercent'], molar_yield: ['limitingAmountMmol', 'productAmountMmol', 'stoichiometricFactor', 'reportedYieldPercent'], mass_amount: ['massMg', 'amountMmol', 'molarMassGmol'], concentration: ['concentrationM', 'volumeMl', 'amountMmol'] }[input.kind];
   if (!allowed || Object.keys(input).some(k => k !== 'kind' && !allowed.includes(k))) throw new Error('Unknown experimental fields');
-  const v = Object.fromEntries(allowed.map(k => [k, number(input[k], k, k === 'reportedYieldPercent' || k === 'productMassMg')]));
+  const v = Object.fromEntries(allowed.map(k => [k, number(input[k], k, ['reportedYieldPercent', 'productMassMg', 'productAmountMmol'].includes(k))]));
   let calculated, reported, threshold, unit, equation;
-  if (input.kind === 'yield') {
+  if (input.kind === 'molar_yield') {
+    calculated = v.productAmountMmol.div(v.limitingAmountMmol.times(v.stoichiometricFactor)).times(100); reported = v.reportedYieldPercent; threshold = new D(config.yieldTolerancePercent); unit = '%'; equation = '100 × productAmountMmol / (limitingAmountMmol × stoichiometricFactor)';
+  } else if (input.kind === 'yield') {
     calculated = v.productMassMg.div(v.molarMassGmol).div(v.limitingAmountMmol.times(v.stoichiometricFactor)).times(100); reported = v.reportedYieldPercent; threshold = new D(config.yieldTolerancePercent); unit = '%'; equation = '100 × productMassMg / (molarMassGmol × limitingAmountMmol × stoichiometricFactor)';
   } else if (input.kind === 'mass_amount') {
     calculated = v.amountMmol.times(v.molarMassGmol); reported = v.massMg; threshold = calculated.times(config.amountRelativeTolerance); unit = 'mg'; equation = 'amountMmol × molarMassGmol';
@@ -24,7 +28,7 @@ export function calculateExperiment(input, options = {}) {
     calculated = v.concentrationM.times(v.volumeMl); reported = v.amountMmol; threshold = calculated.times(config.amountRelativeTolerance); unit = 'mmol'; equation = 'concentrationM × volumeMl';
   }
   const difference = reported.minus(calculated);
-  return { kind: input.kind, input: structuredClone(input), calculated: calculated.toString(), reported: reported.toString(), difference: difference.toString(), tolerance: threshold.toString(), unit, equation, status: difference.abs().gt(threshold) ? 'needs_review' : 'compatible_with_tolerance', assumptions: input.kind === 'yield' ? 'Explicit limiting amount, product molar mass and reaction stoichiometric factor are required. No automatic 1:1 assumption, purity correction or substitution of HRMS monoisotopic m/z for molar mass.' : 'Explicit co-referent fields in one record; mathematical consistency only.' };
+  return { kind: input.kind, input: structuredClone(input), calculated: calculated.toString(), reported: reported.toString(), difference: difference.toString(), tolerance: threshold.toString(), unit, equation, status: difference.abs().gt(threshold) ? 'needs_review' : 'compatible_with_tolerance', assumptions: input.kind === 'molar_yield' ? 'Reported product mmol used directly; explicit limiting amount and stoichiometric factor required. No molar mass needed.' : input.kind === 'yield' ? 'Explicit limiting amount, product molar mass and reaction stoichiometric factor are required. No automatic 1:1 assumption, purity correction or substitution of HRMS monoisotopic m/z for molar mass.' : 'Explicit co-referent fields in one record; mathematical consistency only.' };
 }
 
 const FIELD_PATTERNS = {

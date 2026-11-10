@@ -17,6 +17,8 @@ import { validateScientificConfig } from './scientific-config.js';
 import { parseSpectrumLabels, validateSpectrumFields, checkSpectrumReadings } from './spectrum-check.js';
 import { checkExperimentalMath } from './experimental-math.js';
 import { checkExperimentalProse } from './experimental-prose.js';
+import { validateExperimentContext } from './experiment-context.js';
+import { calculateMolarMass } from './molar-mass.js';
 import { checkCrossReferences } from './cross-check.js';
 import { buildRevisionLedger, applyRevalidations, validateRevalidation } from './revisions.js';
 import { workflowAction } from './workflow.js';
@@ -385,7 +387,7 @@ export class AuditService {
       const hrms = checkHrms(documents, p.hrmsOptions ?? DEFAULT_HRMS);
       const nmr = checkNmr(documents, hrms.records, scientificOptions);
       const experimental = checkExperimentalMath(documents, scientificOptions);
-      const prose = checkExperimentalProse(documents, scientificOptions);
+      const prose = checkExperimentalProse(documents, scientificOptions, { hrmsRecords: hrms.records, contexts: p.experimentContexts ?? [] });
       const cross = checkCrossReferences(documents, result.facts);
       const activeAssets = (p.visualAssets ?? []).filter(a => !p.activeVisuals || p.activeVisuals[a.originKey] === a.id);
       const currentAssets = activeAssets.filter(a => documents.some(d => d.id === a.documentId && d.sha256 === a.sourceSha256));
@@ -420,6 +422,9 @@ export class AuditService {
       coverage.nmrFormula = nmr.coverage; coverage.imageDuplicates = duplicates.coverage;
       coverage.compounds = registry.coverage;
       coverage.crossReferences = cross.coverage; coverage.experimentalProse = prose.coverage;
+      if (prose.coverage.checked) coverage.completedChecks.push('experimental_prose_explicit_input_recalculation');
+      if (prose.coverage.conditional) coverage.conditionalChecks = ['experimental_prose_assumption_scenarios'];
+      if (prose.coverage.insufficient || prose.coverage.conditional) coverage.incompleteChecks.push('experimental_input_basis_or_linking');
       coverage.experimentalMath = experimental.coverage; coverage.spectrumComparison = spectra.coverage;
       if (experimental.coverage.checked) coverage.completedChecks.push('explicit_experimental_numeric_recalculation');
       if (spectra.coverage.readings) coverage.completedChecks.push('spectrum_label_comparison');
@@ -463,6 +468,18 @@ export class AuditService {
       p.duplicateProgress = { signature: imageSignature, runId: run.id, nextPairOffset: duplicates.coverage.nextPairOffset, totalEligiblePairs: duplicates.coverage.totalEligiblePairs, skipped: duplicates.coverage.skipped };
       await atomic(path.join(this.dir(projectId), 'project.json'), p);
       return { ...run, reviews: [] };
+    });
+  }
+  async setExperimentContext({ projectId, runId, context }) {
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId), run = await this.getRun({ projectId, runId });
+      if (p.runIds.at(-1) !== run.id) throw new Error('Use the latest audit run');
+      const value = validateExperimentContext(context, run);
+      if (value.neutralFormula) calculateMolarMass(value.neutralFormula);
+      const doc = run.documents.find(d => d.id === value.documentId), source = p.documents.find(d => d.key === doc.sourceKey);
+      if (!source || hash(await readFile(await this.sourcePath(p, source.filePath))) !== value.sourceSha256) throw new Error('Source changed; audit again before confirming experimental context');
+      p.experimentContexts ??= []; p.experimentContexts.push(value); p.scientificRevision = (p.scientificRevision ?? 0) + 1;
+      await atomic(path.join(this.dir(projectId), 'project.json'), p); return value;
     });
   }
   async workflow(args) { return workflowAction(this, args); }

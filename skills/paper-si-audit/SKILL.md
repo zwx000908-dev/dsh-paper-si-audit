@@ -52,3 +52,8 @@ automatic structure confirmation and automatic Word rewriting are not provided.
 ## 0.5 工作流
 
 请求整篇覆盖时，调用 paper_audit_workflow start 并根据 nextAction 续跑；报告失败、未覆盖和 OCR 仅为候选文字。源或规则变更后建立新任务。用 cross_references 查看明确图表引用和受支持表格比较，用 experiments 查看实验原句、缺项与歧义。修订后运行并读取 revisions；只有用户明确给出新证据复核决定才调用 revalidate。问题消失不等于已修复，删除数据不得作为关闭依据。详细用法见 docs/WORKFLOW-0.5.md。
+
+
+## 0.6 实验关联
+
+使用 experiments 检查字段来源、方法引用和缺项类型。明确条件复算与 conditionalCalculations 必须分开报告；1-equiv 基准候选和假设 1:1 均不等于已确认限制试剂/计量。优先使用已有产物 mmol。摩尔质量由固定标准原子量与明确中性式计算，不使用 HRMS m/z；离子口径歧义保留候选。experiment_context 仅记录用户明确的解释，模型不得自行确认；保存后重新运行，原件改变使确认失效。见 docs/EXPERIMENTS-0.6.md。

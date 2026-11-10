@@ -139,6 +139,20 @@ export async function apply(ctx, config) {
   const closed = await invoke('paper_audit_revisions', { projectId: revisionProject.id });
   if (!closed.items.some(r => r.id === resolved.id && r.state === 'closed_by_user')) throw new Error('Native explicit revalidation not recorded');
 
+  const linkedProject = await invoke('paper_audit_create', { name: 'Synthetic linked experimental context' });
+  const linkedPath = path.join(config.sourceDir, 'linked-si.txt');
+  await writeFile(linkedPath, 'General procedure A\nSubstrate (0.20 mmol, 1.0 equiv.) and reagent (0.30 mmol, 1.5 equiv.) were stirred in solvent for 2 h.\nFollowing general procedure A, product 3a was obtained in 86% yield (51.3 mg, 0.171 mmol).');
+  await invoke('paper_audit_add_document', { projectId: linkedProject.id, filePath: linkedPath, role: 'si' });
+  const linkedRun = await invoke('paper_audit_run', { projectId: linkedProject.id });
+  const linkedBlocks = await invoke('paper_audit_blocks', { projectId: linkedProject.id, runId: linkedRun.id, documentId: linkedRun.documents[0].id });
+  const methodBlock = linkedBlocks.items[1];
+  await invoke('paper_audit_experiment_context', { projectId: linkedProject.id, runId: linkedRun.id, contextJson: JSON.stringify({ scope: 'method', documentId: linkedRun.documents[0].id, methodLabel: 'A', limitingAmountMmol: .2, stoichiometricFactor: 1, reason: 'Synthetic explicit-user-interpretation fixture, not human review of real data', citations: [{ blockId: methodBlock.id, start: 0, end: methodBlock.text.length, quote: methodBlock.text }] }) });
+  await invoke('paper_audit_run', { projectId: linkedProject.id });
+  const linkedChecks = await invoke('paper_audit_experiments', { projectId: linkedProject.id });
+  if (!linkedChecks.items.some(r => r.kind === 'yield' && r.calculation?.kind === 'molar_yield' && r.calculation.calculated === '85.5')) throw new Error('Native user-context molar yield failed');
+  const molar = await invoke('paper_audit_calculate_experiment', { inputJson: JSON.stringify({ kind: 'molar_mass', neutralFormula: 'C2H6O' }) });
+  if (molar.molarMassGmol !== '46.069') throw new Error('Native standard molar mass failed');
+
   // Emit only after this apply returns, so Loader can finish this probe's activation.
   setImmediate(() => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'paper-audit.smoke', params: {
     passed: true, nativeToolCount: expectedToolNames.length, projectId: project.id, runId: run.id,
@@ -146,6 +160,7 @@ export async function apply(ctx, config) {
     engineVersion: run.engineVersion, execution: run.execution,
     evidenceRead: true, reportExported: true, semanticStatus: run.coverage.semanticStatus,
     modelCalls: 0, syntheticDataOnly: true,
+    generalProcedureContextChecked: true, directMolarYieldChecked: true, standardMolarMassChecked: true,
     crossReferencesChecked: true, proseExtractionChecked: true, revisionRevalidationChecked: true, wholeProjectWorkflowChecked: true,
     exactMassCalculated: true, webPanelIncluded: false,
     nmrFormulaChecked: true, duplicateImagesChecked: true,

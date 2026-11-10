@@ -1,0 +1,7 @@
+{
+  "version": "ciaaw-abridged-2024-subset-2026-11-10",
+  "source": "https://ciaaw.org/abridged-atomic-weights.htm",
+  "checkedAt": "2026-11-10",
+  "note": "Abridged standard atomic weights for normal terrestrial materials; not isotope masses or HRMS m/z. Subset only. Isotopically enriched material is unsupported.",
+  "weights": {"H":"1.0080","Li":"6.94","B":"10.81","C":"12.011","N":"14.007","O":"15.999","F":"18.998","Na":"22.990","Mg":"24.305","Al":"26.982","Si":"28.085","P":"30.974","S":"32.06","Cl":"35.45","K":"39.098","Ca":"40.078","Fe":"55.845","Co":"58.933","Ni":"58.693","Cu":"63.546","Zn":"65.38","Se":"78.971","Br":"79.904","Pd":"106.42","Ag":"107.87","Sn":"118.71","I":"126.90","Cs":"132.91","Ba":"137.33","Pt":"195.08","Au":"196.97"}
+}

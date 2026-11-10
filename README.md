@@ -20,7 +20,7 @@
 
 ## 安装
 
-`main` 分支开发版本为 **0.5.0**，包含化合物档案、完整性清单、局部图片查重、谱图标注互查及实验复算；已打标签的稳定安装包仍为 **0.2.0**。兼容目标为 **DeepSeek Harness 0.2.2-rc.1**，源码开发和命令行环境需要 Node.js **24.9.0 或以上**。
+`main` 分支开发版本为 **0.6.0**，包含化合物档案、完整性清单、局部图片查重、谱图标注互查及实验复算；已打标签的稳定安装包仍为 **0.2.0**。兼容目标为 **DeepSeek Harness 0.2.2-rc.1**，源码开发和命令行环境需要 Node.js **24.9.0 或以上**。
 
 要使用包含上述检查的开发版本：
 
@@ -65,7 +65,7 @@ dsh plugin --profile paper-audit add ./dsh-paper-si-audit-0.2.0.tgz
 
 > 请核对正文和 SI 中的核磁数据与各自分子式是否相容，把积分不符、碳数超出、分子式歧义和信息不足的记录列出。对我导入的文档和科研图片逐批准备查重素材，跟进 nextOffset 后运行核对；列出完全重复与疑似相似的图片及两端位置。明确未读图片、PDF 整页比较的局限以及超过处理上限的材料。
 
-核磁文本检查随 `paper_audit_run` 自动执行。图片先用 `paper_audit_prepare_image_audit` 对每个来源的 `documentKey` 分批提取（每批 1–10 个，跟进 `nextOffset`），随后再次运行 `paper_audit_run`，在 `image_duplicate` 问题中查看候选。默认处理最多 1000 个登记素材、每次比较 2000 对；比较未结束时继续运行，同一项目保留跨批次比较进度。使用 `paper_audit_visual_image` 按候选中的 assetId 打开两端原图。图表核对、实验段落解析、修订闭环和整篇续跑见 [0.5 使用说明](docs/WORKFLOW-0.5.md)。完整流程、材料清单、自定义阈值及计算示例见 [科学材料核对](docs/SCIENTIFIC-WORKFLOW.md)。
+核磁文本检查随 `paper_audit_run` 自动执行。图片先用 `paper_audit_prepare_image_audit` 对每个来源的 `documentKey` 分批提取（每批 1–10 个，跟进 `nextOffset`），随后再次运行 `paper_audit_run`，在 `image_duplicate` 问题中查看候选。默认处理最多 1000 个登记素材、每次比较 2000 对；比较未结束时继续运行，同一项目保留跨批次比较进度。使用 `paper_audit_visual_image` 按候选中的 assetId 打开两端原图。通用方法继承、直接 mmol 收率、摩尔质量与条件性复算见 [实验关联说明](docs/EXPERIMENTS-0.6.md)。图表核对、实验段落解析、修订闭环和整篇续跑见 [0.5 使用说明](docs/WORKFLOW-0.5.md)。完整流程、材料清单、自定义阈值及计算示例见 [科学材料核对](docs/SCIENTIFIC-WORKFLOW.md)。
 
 ## 支持的材料与使用边界
 

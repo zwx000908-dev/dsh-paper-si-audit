@@ -1,6 +1,6 @@
-# DeepSeek Harness 原生接入（0.5.0 开发版）
+# DeepSeek Harness 原生接入（0.6.0 开发版）
 
-目标宿主：**DeepSeek Harness 0.2.2-rc.1**。插件开发版本：**0.5.0**。两者分开管理。
+目标宿主：**DeepSeek Harness 0.2.2-rc.1**。插件开发版本：**0.6.0**。两者分开管理。
 
 本版只有 Harness 原生工具及可选命令行，**没有网页复核面板、本地 HTTP 服务或浏览器入口**。旧运行与旧安装包属于历史产物，不会因移除面板而删除。
 
@@ -10,7 +10,7 @@
 - `@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-system-prompt`：`0.2.2-rc.1`。
 - `@deepseek-ai/cordis`：`4.1.0`；`@deepseek-ai/schemastery`：`3.19.0`。
 - 工具经 `defineTool` / `ctx.tools.register` 注册，配置使用 Schemastery，流程指令通过 `ctx.systemPrompt.section` 注入。
-- 原生工具 **38 个**，实际清单由 `createToolDefinitions()` 与集成测试校验。
+- 原生工具 **39 个**，实际清单由 `createToolDefinitions()` 与集成测试校验。
 
 图像输出使用该版本的真实 `ContentBlock`：`{ type: 'image', attachment: ImageAttachmentRef }`。不能直接把 base64 或路径字符串冒充模型看到了图像。插件在可选 `ctx.attachments` 中保存已登记图像，由当前调用路由的 `llm.resolveModelInfo` 确认其声明支持 image 后再送出 durable image block。文本模型、无附件服务或不受支持的媒体类型会得到明确的 `imageDelivered: false`，本地 OCR 仍可单独使用。
 
@@ -131,3 +131,5 @@ CLI 不启动网页，`serve` 已移除，会明确拒绝而不创建服务器�
 
 
 0.5.0 新增六个原生工具：cross_references、revisions、revalidate、experiments、workflow、material_text（均带 paper_audit_ 前缀）。完整参数和执行边界见 [0.5 使用说明](WORKFLOW-0.5.md)。
+
+0.6.0 新增 paper_audit_experiment_context；calculate_experiment 支持 molar_yield 和 molar_mass。参见 [实验关联说明](EXPERIMENTS-0.6.md)。
