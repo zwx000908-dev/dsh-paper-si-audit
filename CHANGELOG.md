@@ -1,6 +1,13 @@
 # 0.6.0 (development)
 
 
+## 0.10.0 — Visible native settings and multimodal-first image review
+
+- Register the actual “论文核对” page in the Harness settings sidebar; Config alone did not create a page in 0.9.0. Add native client metadata, editable volatile fields, validated revision-fenced saves and live tool configuration.
+- Guide multimodal models to inspect originals, panels and detail crops first. Keep OCR and pixel matching as optional aids; lack of a vision route is not an OCR fallback for image review.
+- Disable auxiliary OCR by default for new projects while retaining existing preferences. Preserve rendered images when optional OCR fails and expose a model-review handoff separately from preparation completion.
+- Keep 47 native tools and Harness 0.2.2-rc.1 compatibility; stable v0.2.0 remains unchanged.
+
 ## 0.9.0 — Native settings and reproducible defaults
 
 - Add grouped Harness configuration for scope, enabled checks, format profiles, numerical tolerances, typed-image screening, visual budgets, OCR and report presentation.

@@ -31,10 +31,13 @@ const manifest = JSON.parse(contents.get('package/package.json').toString('utf8'
 assert.equal(manifest.name, 'dsh-paper-si-audit');
 assert.equal(manifest.version, sourceManifest.version);
 assert.equal(manifest.engines.dsh, '0.2.2-rc.1');
+assert.equal(manifest.exports['./client'],'./client/index.js');
+assert.equal(manifest.dsh.client.platform,'web');
+assert.ok(manifest.dsh.client.inject.includes('@deepseek-ai/dsh-client-ui-settings'));
 assert.equal(manifest.engines.node, '>=24.9.0');
 assert.ok(manifest.keywords.includes('dsh-plugin'));
 assert.equal(manifest.repository.url, 'git+https://github.com/zwx000908-dev/dsh-paper-si-audit.git');
-for (const member of [manifest.main, manifest.dsh.bundle.patch, ...Object.values(manifest.bin), 'src/settings.js', 'src/settings-schema.js', 'docs/SETTINGS.md', 'src/service.js', 'src/engine.js', 'src/profiles.js', 'src/parsers.js', 'src/report.js', 'src/stoichiometry.js', 'src/version.js', 'src/hrms.js', 'src/isotope-masses.json', 'src/image-tables.js', 'scripts/doctor-harness.js', 'profiles/custom-demo.yaml', 'docs/VALIDATION.md', 'docs/HRMS.md', 'docs/IMAGE-TABLES.md']) assert.ok(members.includes('package/' + member.replace(/^\.\//, '')), `Missing ${member}`);
+for (const member of [manifest.main, manifest.dsh.bundle.patch, ...Object.values(manifest.bin), 'client/index.js', 'src/runtime-settings.js', 'src/settings-controller.js', 'src/settings.js', 'src/settings-schema.js', 'docs/SETTINGS.md', 'src/service.js', 'src/engine.js', 'src/profiles.js', 'src/parsers.js', 'src/report.js', 'src/stoichiometry.js', 'src/version.js', 'src/hrms.js', 'src/isotope-masses.json', 'src/image-tables.js', 'scripts/doctor-harness.js', 'profiles/custom-demo.yaml', 'docs/VALIDATION.md', 'docs/HRMS.md', 'docs/IMAGE-TABLES.md']) assert.ok(members.includes('package/' + member.replace(/^\.\//, '')), `Missing ${member}`);
 assert.ok(!members.some(m => m.startsWith('package/web/') || m === 'package/src/server.js'), 'Removed web panel/server must not be packaged');
 assert.ok(!manifest.scripts?.start, 'Removed web launch script must not be packaged');
 for (const member of ['CHANGELOG.md', 'icon.svg', 'locale/en.json', 'locale/zh.json']) assert.ok(members.includes('package/' + member), `Missing ${member}`);

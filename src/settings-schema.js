@@ -4,8 +4,8 @@ import path from 'node:path';
 const number=(value,min,max,label,integer=false)=>{let s=Schema.number().min(min).max(max);if(integer)s=s.step(1);return s.default(value).description(label);};
 const flag=(value,label)=>Schema.boolean().default(value).description(label);
 export const Config=Schema.object({
- dataDir:Schema.string().default(path.join(homedir(),'.paper-si-audit')).description('项目保存目录（绝对路径；更改不会自动搬迁旧项目）'),
- allowedRoots:Schema.array(Schema.string()).default([]).description('允许读取的论文目录（绝对路径；空列表禁止导入）'),
+ dataDir:Schema.string().default(path.join(homedir(),'.paper-si-audit')).description('项目保存目录（绝对路径；更改不会自动搬迁旧项目）').volatile(),
+ allowedRoots:Schema.array(Schema.string()).default([]).description('允许读取的论文目录（绝对路径；空列表禁止导入）').volatile(),
  defaults:Schema.object({
   scope:Schema.union(['all','si']).default('all').description('默认核对范围：all=全部已导入材料，si=仅补充信息'),
   checks:Schema.object(Object.fromEntries(Object.entries({crossDocument:'正文与 SI 数值比较',stoichiometry:'用量/当量检查',hrms:'HRMS 精确质量告警',nmr:'核磁文字与分子式核对',experiments:'实验段落复算',crossReferences:'图表与结论引用核对',pixelDuplicates:'程序图片查重',visualReview:'视觉 Agent 复核入口'}).map(([k,label])=>[k,flag(true,label)]))).description('默认启用的检查').default({}),
@@ -14,7 +14,7 @@ export const Config=Schema.object({
   hrms:Schema.object({ppmTolerance:number(5,.001,10000,'HRMS ppm 告警容差'),mDaTolerance:Schema.union([Schema.const(null).description('不设置绝对 mDa 阈值'),number(1,.001,1000,'绝对 mDa 告警容差')]).default(null)}).description('HRMS 容差（不设置分子式口径）').default({}),
   imageTypeRulesJson:Schema.string().role('textarea').default('').description('高级：按图片类型覆盖查重规则的 JSON；空白采用内置分类规则'),
   visual:Schema.object({mode:Schema.union(['all','same_type']).default('all').description('视觉配对：全部或同类型（unknown 仍参与比较）'),includeSelf:flag(true,'检查同一图片内部的不同区域'),maxAssets:number(200,1,500,'视觉图片上限',true),maxPairs:number(2000,1,10000,'视觉每批任务上限',true)}).description('视觉 Agent 任务预算；模型由 Harness 管理').default({}),
-  workflow:Schema.object({ocr:flag(true,'整篇准备时运行本地 OCR（结果保持未确认）'),maxSteps:number(3,1,25,'每次工作流执行步数',true)}).description('材料读取与任务推进').default({}),
+  workflow:Schema.object({ocr:flag(false,'辅助 OCR：按需提取文字；图片审核由多模态模型完成'),maxSteps:number(3,1,25,'每次工作流执行步数',true)}).description('材料读取与任务推进').default({}),
   report:Schema.object({format:Schema.union(['md','json','csv']).default('md').description('默认导出格式'),includeImages:flag(true,'Markdown 中展示对照图片'),includeEvidence:flag(true,'Markdown 中展示完整逐条证据区块；关闭仅缩短展示，不删除 JSON 证据')}).description('报告展示').default({}),
- }).description('新项目默认设置（已有项目保留原设置；单次任务可覆盖）').default({}),
+ }).description('新项目默认设置（已有项目保留原设置；单次任务可覆盖）').default({}).volatile(),
 });

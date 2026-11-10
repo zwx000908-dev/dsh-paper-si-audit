@@ -17,7 +17,7 @@ test('whole project workflow survives service restart, reads OCR and finishes pa
   const c = createCanvas(900, 220), x = c.getContext('2d'); x.fillStyle = 'white'; x.fillRect(0, 0, 900, 220); x.fillStyle = 'black'; x.font = '36px Arial'; x.fillText('Compound 3a: isolated yield 80%', 30, 100);
   for (let i = 0; i < 3; i++) await add(`image${i}.png`, c.toBuffer('image/png'), 'source');
   await service.configureScientific({ projectId: p.id, options: { imagePairBudget: 1 } });
-  let job = await service.workflow({ projectId: p.id, action: 'start', maxSteps: 1 }); assert.equal(job.nextAction, 'resume');
+  let job = await service.workflow({ projectId: p.id, action: 'start', ocr: true, maxSteps: 1 }); assert.equal(job.nextAction, 'resume');
   const next = await new AuditService(options).init();
   for (let i = 0; i < 15 && job.nextAction; i++) job = await next.workflow({ projectId: p.id, action: 'resume', maxSteps: 1 });
   assert.equal(job.status, 'completed'); assert.equal(job.tasks.length, 3); assert.equal(job.counts.ocr_read_provisional, 3); assert.equal(job.coverage.imageDuplicates.comparedPairs, 3);

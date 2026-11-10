@@ -10,7 +10,7 @@ export function mergeSettings(base,patch={}) {
   }
   return out;
 }
-export function builtInSettings(){return {scope:'all',checks:{crossDocument:true,stoichiometry:true,hrms:true,nmr:true,experiments:true,crossReferences:true,pixelDuplicates:true,visualReview:true},profile:defaultProfile(),scientific:validateScientificConfig(),hrms:{ppmTolerance:5,mDaTolerance:null},workflow:{ocr:true,maxSteps:3},visual:{mode:'all',includeSelf:true,maxAssets:200,maxPairs:2000},report:{format:'md',includeImages:true,includeEvidence:true}};}
+export function builtInSettings(){return {scope:'all',checks:{crossDocument:true,stoichiometry:true,hrms:true,nmr:true,experiments:true,crossReferences:true,pixelDuplicates:true,visualReview:true},profile:defaultProfile(),scientific:validateScientificConfig(),hrms:{ppmTolerance:5,mDaTolerance:null},workflow:{ocr:false,maxSteps:3},visual:{mode:'all',includeSelf:true,maxAssets:200,maxPairs:2000},report:{format:'md',includeImages:true,includeEvidence:true}};}
 function keys(obj,allowed){if(!plain(obj)||Object.keys(obj).some(k=>!allowed.includes(k)))throw new Error('Unknown or invalid settings field');}
 function num(v,min,max,integer=false){if(typeof v!=='number'||!Number.isFinite(v)||v<min||v>max||(integer&&!Number.isInteger(v)))throw new Error('Setting outside allowed bounds');}
 export function validateSettings(input){
@@ -24,8 +24,9 @@ export function validateSettings(input){
   keys(r.report,['format','includeImages','includeEvidence']);if(!['md','json','csv'].includes(r.report.format)||typeof r.report.includeImages!=='boolean'||typeof r.report.includeEvidence!=='boolean')throw new Error('Invalid report defaults');
   return r;
 }
+function legacySettings(){const s=builtInSettings();s.workflow.ocr=true;return s;}
 export function projectSettings(p){
-  const base=p.settingsSnapshot??builtInSettings();
+  const base=p.settingsSnapshot??legacySettings();
   const current=mergeSettings(base,p.settingsOverrides??{});
   current.profile=p.profile??current.profile;current.scientific=p.scientificOptions??current.scientific;
   current.hrms={ppmTolerance:p.hrmsOptions?.ppmTolerance??current.hrms.ppmTolerance,mDaTolerance:p.hrmsOptions && Object.hasOwn(p.hrmsOptions,'mDaTolerance') ? p.hrmsOptions.mDaTolerance : current.hrms.mDaTolerance};
@@ -33,7 +34,7 @@ export function projectSettings(p){
 }
 export function resolveSettings(p,patch={}){
   const project=projectSettings(p),effective=validateSettings(mergeSettings(project,patch));
-  return {effective,projectEffective:project,projectRevision:p.settingsRevision??0,inheritance:p.settingsSnapshot?'plugin_defaults_captured_at_creation':'legacy_project_and_0.8_defaults',projectDefaults:structuredClone(p.settingsSnapshot??builtInSettings()),projectOverrides:structuredClone(p.settingsOverrides??{}),taskOverrides:structuredClone(patch),note:'Captured defaults -> project settings -> task patch. Scientific interpretations and model credentials are not settings defaults.'};
+  return {effective,projectEffective:project,projectRevision:p.settingsRevision??0,inheritance:p.settingsSnapshot?'plugin_defaults_captured_at_creation':'legacy_project_and_0.8_defaults',projectDefaults:structuredClone(p.settingsSnapshot??legacySettings()),projectOverrides:structuredClone(p.settingsOverrides??{}),taskOverrides:structuredClone(patch),note:'Captured defaults -> project settings -> task patch. Scientific interpretations and model credentials are not settings defaults.'};
 }
 export function auditSettingsKey(s){const{scope,checks,profile,scientific,hrms}=s;return JSON.stringify({scope,checks,profile,scientific,hrms});}
 export function defaultsFromConfig(config={}){

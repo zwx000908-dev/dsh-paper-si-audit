@@ -21,14 +21,15 @@ export async function workflowAction(service, { projectId, action = 'status', jo
   const dir = path.join(service.dir(projectId), 'workflow'), activeFile = path.join(dir, 'active.json');
   await service.getProject(projectId);
   async function load() { const selected = jobId ?? JSON.parse(await readFile(activeFile, 'utf8')).jobId; if (!/^[a-f0-9-]{36}$/.test(selected)) throw new Error('Invalid workflow job ID'); return { file: path.join(dir, selected + '.json'), job: JSON.parse(await readFile(path.join(dir, selected + '.json'), 'utf8')) }; }
-  const summary = job => ({ ...job, counts: job.tasks.reduce((o, t) => (o[t.status] = (o[t.status] ?? 0) + 1, o), {}), nextAction: ['completed', 'completed_with_gaps', 'cancelled', 'stale'].includes(job.status) ? null : 'resume', note: 'Rendering and OCR are not scientific verification. OCR is provisional; graph traces, chemical structures, OLE, table layout and full semantics still require targeted review. Resume uses persisted checkpoints; completed means the requested bounded pipeline finished.' });
+  const handoff=job=>({primaryMethod:'multimodal_source_images',ocrRole:'optional_text_aid',modelReviewPerformedByWorkflow:false,preparedAssetIds:job.tasks.filter(t=>t.assetId&&['rendered','rendered_with_ocr_gap','ocr_read_provisional'].includes(t.status)).map(t=>t.assetId),tools:['paper_audit_visual_image',...(job.appliedSettings?.effective.checks.visualReview===false?[]:['paper_audit_visual_review','paper_audit_visual_pair'])],note:'Inspect originals and detail crops with the current multimodal model. Preparation/OCR completion is not image review. Use the visual queue for requested duplicate review; read its current status and disclose omissions.'});
+  const summary = job => ({ ...job, reviewHandoff:handoff(job), counts: job.tasks.reduce((o, t) => (o[t.status] = (o[t.status] ?? 0) + 1, o), {}), nextAction: ['completed', 'completed_with_gaps', 'cancelled', 'stale'].includes(job.status) ? null : 'resume', note: 'Rendering and OCR are not scientific verification. OCR is provisional; graph traces, chemical structures, OLE, table layout and full semantics still require targeted review. Resume uses persisted checkpoints; completed means the requested bounded pipeline finished.' });
   if (action === 'status') { const { job } = await load(); if (job.signature !== await signature(service, projectId)) return summary({ ...job, status: 'stale', reason: 'Sources or rules changed; start a new workflow.' }); return summary(job); }
   return service.locked(projectId, async () => {
     let file, job;
     if (action === 'start') {
       try { const active = await load(); if (!['completed', 'completed_with_gaps', 'cancelled', 'stale'].includes(active.job.status) && active.job.signature === await signature(service, projectId) && JSON.stringify(active.job.taskSettings??{})===JSON.stringify(taskSettings)) return summary(active.job); } catch (e) { if (e.code !== 'ENOENT') throw e; }
-      const p = await service.getProject(projectId); if (!p.documents.length) throw new Error('Import sources first');
-      job = { id: randomUUID(), projectId, signature: await signature(service, projectId), createdAt: new Date().toISOString(), status: 'pending', stage: 'inventory', taskSettings, appliedSettings, ocr: appliedSettings.effective.workflow.ocr, excludedDocuments:p.documents.filter(d=>appliedSettings.effective.scope==='si'&&d.role!=='si').map(d=>d.key), documents: p.documents.filter(d=>appliedSettings.effective.scope!=='si'||d.role==='si').map(d => ({ key: d.key, name: d.name, visual: visual.test(d.name), status: visual.test(d.name) ? 'pending' : 'text_only' })), tasks: [], runIds: [], failures: [], attempts: 0 };
+      const p = await service.getProject(projectId); const appliedSettings=resolveSettings(p,taskSettings); if (!p.documents.length) throw new Error('Import sources first');
+      job = { id: randomUUID(), projectId, signature: await signature(service, projectId), createdAt: new Date().toISOString(), status: 'pending', stage: 'inventory', taskSettings, appliedSettings, ocr: appliedSettings.effective.workflow.ocr, excludedDocuments:p.documents.filter(d=>appliedSettings.effective.scope==='si'&&d.role!=='si').map(d=>d.key), documents: p.documents.filter(d=>appliedSettings.effective.scope!=='si'||d.role==='si').map(d => ({ key: d.key, name: d.name, visual: visual.test(d.name), status: visual.test(d.name) ? 'pending' : 'text_only' })), tasks: [], runIds: [], failures: [], ocrFailures: [], attempts: 0 };
       file = path.join(dir, job.id + '.json'); await save(file, job); await save(activeFile, { jobId: job.id });
     } else ({ file, job } = await load());
     maxSteps ??= job.appliedSettings?.effective.workflow.maxSteps ?? 3;
@@ -36,9 +37,9 @@ export async function workflowAction(service, { projectId, action = 'status', jo
     if (job.signature !== await signature(service, projectId)) { job.status = 'stale'; await save(file, job); return summary(job); }
     if (action === 'retry_failed') {
       for (const d of job.documents) if (d.status === 'failed') d.status = 'pending';
-      for (const t of job.tasks) if (t.status === 'failed') { t.status = 'pending'; delete t.error; }
-      (job.failureHistory ??= []).push({ at: new Date().toISOString(), failures: structuredClone(job.failures) });
-      job.failures = []; job.status = 'pending'; job.stage = job.documents.some(d => d.status === 'pending') ? 'inventory' : 'materials';
+      for (const t of job.tasks) if (t.status === 'failed' || t.ocrStatus==='failed') { t.status = 'pending'; delete t.error; delete t.ocrError; delete t.ocrStatus; }
+      (job.failureHistory ??= []).push({ at: new Date().toISOString(), failures: structuredClone(job.failures),ocrFailures:structuredClone(job.ocrFailures??[]) });
+      job.failures = []; job.ocrFailures=[]; job.status = 'pending'; job.stage = job.documents.some(d => d.status === 'pending') ? 'inventory' : 'materials';
     }
     if (['completed', 'completed_with_gaps', 'cancelled', 'stale'].includes(job.status)) return summary(job);
     job.status = 'running'; job.attempts++; await save(file, job);
@@ -63,13 +64,16 @@ export async function workflowAction(service, { projectId, action = 'status', jo
             if (!asset || asset.status !== 'ready') { const r = await service.prepareImageAudit({ projectId, documentKey: t.documentKey, offset: t.offset, limit: 1, signal }); asset = r.selectedAssets[0]; }
             if (!asset || asset.status !== 'ready') throw new Error(asset?.error ?? 'Asset could not be rendered');
             t.assetId = asset.id;
-            if (job.ocr) { const r = await service.readMaterialImage({ projectId, assetId: asset.id, signal }); t.readingId = r.id; if (r.status === 'failed') throw new Error('No readable OCR text; inspect image manually'); }
-            t.status = job.ocr ? 'ocr_read_provisional' : 'rendered';
+            t.status='rendered';
+            if (job.ocr) {
+              try { const r=await service.readMaterialImage({projectId,assetId:asset.id,signal});t.readingId=r.id;if(r.status==='failed')throw new Error('No readable OCR text');t.status='ocr_read_provisional';t.ocrStatus='provisional'; }
+              catch(e){if(signal?.aborted)throw e;t.status='rendered_with_ocr_gap';t.ocrStatus='failed';t.ocrError=e.message;(job.ocrFailures??=[]).push({documentKey:t.documentKey,assetId:asset.id,offset:t.offset,message:e.message});}
+            }
           } catch (e) { if (signal?.aborted) throw e; t.status = 'failed'; t.error = e.message; job.failures.push({ documentKey: t.documentKey, offset: t.offset, message: e.message }); }
         } else {
           job.inFlight = { kind: 'audit' }; await save(file, job);
-          const run = await service.runAudit({ projectId, settings: job.taskSettings ?? {}, executionEvidence, workflowSnapshot: { jobId: job.id, signature: job.signature, ocr: job.ocr, documents: job.documents, tasks: job.tasks, failures: job.failures } }); job.runIds.push(run.id); job.latestRunId = run.id; job.coverage = run.coverage;
-          if (run.coverage.imageDuplicates.nextPairOffset === null) { job.stage = 'finished'; job.status = job.failures.length || run.coverage.imageDuplicates.skipped.length || run.coverage.imageDuplicates.truncatedAssets || run.coverage.missingRoles.length || run.documents.some(d => d.coverage.status === 'failed') ? 'completed_with_gaps' : 'completed'; }
+          const run = await service.runAudit({ projectId, settings: job.taskSettings ?? {}, executionEvidence, workflowSnapshot: { jobId: job.id, signature: job.signature, ocr: job.ocr, documents: job.documents, tasks: job.tasks, failures: job.failures, ocrFailures:job.ocrFailures??[], reviewHandoff:handoff(job) } }); job.runIds.push(run.id); job.latestRunId = run.id; job.coverage = run.coverage;
+          if (run.coverage.imageDuplicates.nextPairOffset === null) { job.stage = 'finished'; job.status = job.failures.length || job.ocrFailures?.length || run.coverage.imageDuplicates.skipped.length || run.coverage.imageDuplicates.truncatedAssets || run.coverage.missingRoles.length || run.documents.some(d => d.coverage.status === 'failed') ? 'completed_with_gaps' : 'completed'; }
         }
         job.inFlight = null; job.updatedAt = new Date().toISOString(); await save(file, job);
         if (job.stage === 'finished') break;

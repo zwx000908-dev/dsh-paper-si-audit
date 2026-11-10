@@ -9,7 +9,12 @@ const expectedToolNames = createToolDefinitions({}).map(tool => tool.name);
 export const name = 'paper-audit-smoke-probe';
 export const inject = ['tools'];
 
-export async function apply(ctx, config) {
+export function apply(ctx, config) {
+  // Settings edits reconcile Loader entries; run after this probe itself is active.
+  const timer=setImmediate(()=>runProbe(ctx,config).catch(error=>process.stdout.write(JSON.stringify({jsonrpc:'2.0',method:'paper-audit.smoke',params:{passed:false,error:error.message}})+'\n')));
+  ctx.effect(()=>()=>clearImmediate(timer));
+}
+async function runProbe(ctx, config) {
   const deadline = Date.now() + 20000;
   while (!expectedToolNames.every(name => ctx.tools.schemas().some(tool => tool.name === name))) {
     if (Date.now() > deadline) throw new Error('Paper audit native tools did not become available');
@@ -32,6 +37,16 @@ export async function apply(ctx, config) {
   const previewSettings = await invoke('paper_audit_settings', {projectId:project.id,settingsJson:JSON.stringify({scope:'si'})});
   if(previewSettings.effective.scope!=='si'||previewSettings.projectEffective.scope!=='all'||previewSettings.effective.report.includeImages!==false)throw new Error('Native settings precedence failed');
   await invoke('paper_audit_configure_settings', {projectId:project.id,reset:true});
+  let nativeSettings,form;
+  const formDeadline=Date.now()+15000;
+  while(Date.now()<formDeadline){nativeSettings=ctx.get('settings');form=nativeSettings?.describe().find(x=>x.ns==='paper-si-audit');if(form)break;await new Promise(resolve=>setTimeout(resolve,30));}
+  if(!form || !('defaults' in form.value) || !('allowedRoots' in form.value))throw new Error('Native settings form missing editable roots');
+  await nativeSettings.mutate('paper-si-audit',[{op:'set',path:['defaults','scope'],value:'si'}],form.revision);
+  const afterLive=await invoke('paper_audit_settings',{});
+  if(afterLive.pluginDefaults.scope!=='si')throw new Error('Native UI write did not reach tools');
+  if((await invoke('paper_audit_settings',{projectId:project.id})).effective.scope!=='all')throw new Error('Native global write changed an old project');
+  const updatedForm=nativeSettings.describe().find(x=>x.ns==='paper-si-audit');
+  await nativeSettings.mutate('paper-si-audit',[{op:'set',path:['defaults','scope'],value:'all'}],updatedForm.revision);
   const mass = await invoke('paper_audit_hrms_calculate', { formula: 'C2H6O', ion: '[M+H]+', formulaBasis: 'neutral' });
   if (!Array.isArray(mass.candidates) || !mass.candidates.length) throw new Error('Native HRMS calculation did not return an explicit candidate');
   await invoke('paper_audit_add_document', { projectId: project.id, filePath: path.join(config.sourceDir, 'main.txt'), role: 'main' });
@@ -119,7 +134,7 @@ export async function apply(ctx, config) {
   if (exported.imageTables[0]?.review.status !== 'accepted' || exported.imageTables[0]?.rows[1].cells[2].originalOCRText !== '92' || !exported.facts.some(fact => fact.evidenceOrigin === 'image_table_ocr') || !exported.hrmsRecords.length) throw new Error('JSON export lost original OCR, user correction history, visual facts or HRMS records');
   if (createHash('sha256').update(await readFile(sourceImage)).digest('hex') !== sourceHash) throw new Error('Original synthetic image was modified');
 
-  let wholeJob = await invoke('paper_audit_workflow', { projectId: project.id, action: 'start', maxSteps: 10 });
+  let wholeJob = await invoke('paper_audit_workflow', { projectId: project.id, action: 'start', ocr:true, maxSteps: 10 });
   for (let i = 0; i < 10 && wholeJob.nextAction; i++) wholeJob = await invoke('paper_audit_workflow', { projectId: project.id, action: 'resume', maxSteps: 10 });
   if (!['completed', 'completed_with_gaps'].includes(wholeJob.status) || !wholeJob.latestRunId) throw new Error('Native durable workflow did not finish');
   const materialText = await invoke('paper_audit_material_text', { projectId: project.id });
@@ -181,7 +196,7 @@ export async function apply(ctx, config) {
     engineVersion: run.engineVersion, execution: run.execution,
     evidenceRead: true, reportExported: true, semanticStatus: run.coverage.semanticStatus,
     modelCalls: 0, syntheticDataOnly: true,
-    visualAgentQueueChecked: true, visualDeliveryFailureChecked: true, visualFakeReceiptRejected: true, realVisionModelCalls: 0,
+    nativeSettingsFormChecked:true, nativeSettingsPersistenceChecked:true, liveConfigToolsChecked:true, visualAgentQueueChecked: true, visualDeliveryFailureChecked: true, visualFakeReceiptRejected: true, realVisionModelCalls: 0,
     imageTypePolicyChecked: true, commonCauseGroupsChecked: true, generalProcedureContextChecked: true, directMolarYieldChecked: true, standardMolarMassChecked: true,
     crossReferencesChecked: true, proseExtractionChecked: true, revisionRevalidationChecked: true, wholeProjectWorkflowChecked: true,
     exactMassCalculated: true, webPanelIncluded: false,

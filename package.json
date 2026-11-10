@@ -1,6 +1,6 @@
 {
   "name": "dsh-paper-si-audit",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "Evidence-grounded manuscript and supplementary information audit for DeepSeek Harness",
   "repository": {
     "type": "git",
@@ -27,7 +27,8 @@
     "./core": "./src/service.js",
     "./icon": "./icon.svg",
     "./locale/en.json": "./locale/en.json",
-    "./locale/zh.json": "./locale/zh.json"
+    "./locale/zh.json": "./locale/zh.json",
+    "./client": "./client/index.js"
   },
   "bin": {
     "paper-si-audit": "./src/cli.js"
@@ -44,7 +45,7 @@
     "docs",
     "examples",
     "scripts/demo.js",
-    "设计方案.md",
+    "\u8bbe\u8ba1\u65b9\u6848.md",
     "scripts/doctor-harness.js",
     "benchmarks",
     "scripts/evaluate.js",
@@ -52,11 +53,19 @@
     "scripts/evaluate-external.js",
     "scripts/fetch-biofors.py",
     "scripts/evaluate-visual.js",
-    "scripts/prepare-visual-benchmark.js"
+    "scripts/prepare-visual-benchmark.js",
+    "client"
   ],
   "dsh": {
     "bundle": {
       "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-connection"
+      ]
     }
   },
   "scripts": {
@@ -96,10 +105,12 @@
     "@deepseek-ai/dsh-system-prompt": "0.2.2-rc.1",
     "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
     "@deepseek-ai/schemastery": "3.19.0",
-    "tar-stream": "2.2.0"
+    "tar-stream": "2.2.0",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1"
   },
   "peerDependencies": {
     "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
-    "@deepseek-ai/schemastery": "3.19.0"
+    "@deepseek-ai/schemastery": "3.19.0",
+    "@deepseek-ai/dsh-typert-protocol": "0.2.2-rc.1"
   }
 }

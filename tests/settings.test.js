@@ -6,6 +6,7 @@ import path from 'node:path';
 import {createCanvas} from '@napi-rs/canvas';
 import {AuditService} from '../src/service.js';
 import {Config,createToolDefinitions} from '../src/plugin.js';
+import {readRuntimeConfig} from '../src/runtime-settings.js';
 import {builtInSettings,defaultsFromConfig,validateSettings} from '../src/settings.js';
 import {defaultProfile} from '../src/profiles.js';
 async function setup(t,defaults={}){
@@ -17,8 +18,8 @@ async function setup(t,defaults={}){
 const fixture='Compound 3a: 1H NMR (400 MHz, CDCl3) δ 7.123 (s, 2H). HRMS (ESI) m/z: [M+H]+ calcd for C2H6O 47.0491; found 48.0491.';
 const noChecks=Object.fromEntries(Object.keys(builtInSettings().checks).map(k=>[k,false]));
 test('native Config exposes validated defaults and custom decimal profile without invented journal',()=>{
- const defaults=defaultsFromConfig(Config({}).defaults);assert.deepEqual(defaults,builtInSettings());
- const custom=defaultsFromConfig(Config({defaults:{formatting:{enabled:true,h1Digits:4,c13Digits:3}}}).defaults);
+ const defaults=defaultsFromConfig(readRuntimeConfig(Config({})).defaults);assert.deepEqual(defaults,builtInSettings());
+ const custom=defaultsFromConfig(readRuntimeConfig(Config({defaults:{formatting:{enabled:true,h1Digits:4,c13Digits:3}}})).defaults);
  assert.equal(custom.profile.rules[0].number_format.digits,4);assert.equal(custom.profile.rules[1].number_format.digits,3);assert.equal(custom.profile.profile.journal,null);assert.equal(custom.profile.profile.source_type,'user_defined');
  assert.throws(()=>defaultsFromConfig({formatting:{enabled:true,h1Digits:2.5}}));
  assert.throws(()=>validateSettings({hrms:{formulaBasis:'neutral'}}));

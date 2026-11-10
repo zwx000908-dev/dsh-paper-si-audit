@@ -1,6 +1,6 @@
-# DeepSeek Harness 原生接入（0.9.0 开发版）
+# DeepSeek Harness 原生接入（0.10.0 开发版）
 
-目标宿主：**DeepSeek Harness 0.2.2-rc.1**。插件开发版本：**0.9.0**。两者分开管理。
+目标宿主：**DeepSeek Harness 0.2.2-rc.1**。插件开发版本：**0.10.0**。两者分开管理。
 
 本版只有 Harness 原生工具及可选命令行，**没有网页复核面板、本地 HTTP 服务或浏览器入口**。旧运行与旧安装包属于历史产物，不会因移除面板而删除。
 
@@ -142,3 +142,6 @@ CLI 不启动网页，`serve` 已移除，会明确拒绝而不创建服务器�
 
 
 0.9.0 增加原生分组配置、`paper_audit_settings` 和 `paper_audit_configure_settings`。项目与任务设置、快照和兼容说明见 [SETTINGS.md](SETTINGS.md)。
+
+
+0.10.0 补上真正可见的 **设置 → 论文核对** 页面。`dsh.client` 声明加载 `./client`，客户端注册 `settings.section`；三个顶层配置字段为 volatile，经宿主 settings 服务持久化及修订冲突校验。此前只有 Config 并不会自动生成页面。图片审核采用多模态模型直接看原图，OCR 为可选辅助。

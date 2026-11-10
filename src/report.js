@@ -93,6 +93,7 @@ export function renderMarkdown(run, evidenceFrom) {
     }
     lines.push('', '每种解释的公式、输入、标准原子量来源、通用方法引用和用户确认历史保存在 JSON/原生 experiments 工具中。已检查范围未找到不代表整篇文献中没有。', '');
   }
+  if(run.workflow?.reviewHandoff)lines.push('图片准备已交给多模态模型继续审核；OCR 只是辅助文字，准备工作流本身未执行看图判断。辅助 OCR 失败：'+(run.workflow.ocrFailures?.length??0)+'。','');
   if (run.workflow) lines.push('整篇任务：' + run.workflow.jobId + '；已登记任务 ' + run.workflow.tasks.length + '；执行失败 ' + run.workflow.failures.length + '。任务明细及检查点保存在 JSON 和 workflow 工具中。', '');
   if (run.materialReadings?.length) lines.push('## 整篇图像文字读取', '', `已保存 ${run.materialReadings.length} 份 OCR 记录，均保留未确认标记；读取文字不代表完成表格、谱线或结构验证。失败和未覆盖内容见覆盖记录。`, '');
   if (run.revisionLedger) {

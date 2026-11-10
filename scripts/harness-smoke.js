@@ -2,7 +2,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { stringify } from 'yaml';
 import { createCanvas } from '@napi-rs/canvas';
@@ -48,14 +48,18 @@ const removedServe = spawnSync(process.execPath, [path.join(projectRoot, 'src', 
 const removedDataExists = await stat(removedData).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error; });
 if (removedServe.status !== 1 || !/移除/.test(removedServe.stderr) || removedDataExists) throw new Error('Removed serve entrypoint did not reject safely before creating state');
 
-const overlay = path.join(base, 'smoke.patch.yml');
+const profileDir=path.join(home,'profiles','sdk-minimal');await mkdir(profileDir,{recursive:true});
+await writeFile(path.join(profileDir,'package.json'),JSON.stringify({name:'dsh-profile-sdk-minimal',private:true,dependencies:{},dsh:{profile:{bundles:['@deepseek-ai/dsh-sdk-minimal']}}}));
+const overlay = path.join(profileDir, 'cordis.patch.yml');
 await writeFile(overlay, stringify([
   { id: 'session-log-deepseek', disabled: true },
   { id: 'plugin-package-inventory-deepseek', disabled: true },
   { id: 'llm-deepseek', disabled: true },
   { insert: [
-    { id: 'paper-si-audit', name: process.env.PAPER_AUDIT_PLUGIN_ENTRY || path.join(projectRoot, 'src', 'plugin.js'), config: { dataDir, allowedRoots: [sourceDir] } },
-    { id: 'paper-audit-smoke-probe', name: path.join(projectRoot, 'scripts', 'harness-probe.js'), config: { sourceDir } },
+    { id:'config-editor',name:'@deepseek-ai/dsh-config-editor' },
+    { id:'settings',name:'@deepseek-ai/dsh-settings' },
+    { id: 'paper-si-audit', name: pathToFileURL(process.env.PAPER_AUDIT_PLUGIN_ENTRY || path.join(projectRoot, 'src', 'plugin.js')).href, config: { dataDir, allowedRoots: [sourceDir] } },
+    { id: 'paper-audit-smoke-probe', name: pathToFileURL(path.join(projectRoot, 'scripts', 'harness-probe.js')).href, config: { sourceDir } },
   ] },
 ]), 'utf8');
 
@@ -66,7 +70,7 @@ env.DSH_HOME = home;
 const version = spawnSync(process.execPath, [cliBin, '--version'], { cwd: sourceDir, env, encoding: 'utf8', windowsHide: true });
 if (version.status !== 0 || version.stdout.trim() !== '0.2.2-rc.1') throw new Error('Installed target CLI version check failed');
 
-const child = spawn(process.execPath, [cliBin, '--profile', 'sdk-minimal', '--patch', overlay], {
+const child = spawn(process.execPath, [cliBin, '--profile', 'sdk-minimal'], {
   cwd: sourceDir, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
 });
 let stdout = '', stderr = '', pending = '', result = null, timedOut = false, shutdownAcknowledged = false;
