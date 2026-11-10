@@ -43,7 +43,7 @@ export async function workflowAction(service, { projectId, action = 'status', jo
           const d = job.documents.find(d => d.status === 'pending');
           if (!d) { job.stage = 'materials'; step--; continue; }
           job.inFlight = { kind: 'inventory', documentKey: d.key }; await save(file, job);
-          try { const r = await service.prepareVisuals({ projectId, documentKey: d.key, signal }); d.status = 'inventoried'; d.sha256 = r.source.sha256; d.total = r.assets.length; for (let i = 0; i < r.assets.length; i++) if (!job.tasks.some(t => t.documentKey === d.key && t.offset === i)) job.tasks.push({ documentKey: d.key, offset: i, status: 'pending' }); }
+          try { const r = await service.prepareVisuals({ projectId, documentKey: d.key, signal }); d.status = 'inventoried'; d.sha256 = r.source.sha256; d.total = r.assets.length; for (let i = 0; i < r.assets.length; i++) if (!job.tasks.some(t => t.documentKey === d.key && t.offset === i)) job.tasks.push({ documentKey: d.key, offset: i, originKey: r.assets[i].originKey, status: 'pending' }); }
           catch (e) { if (signal?.aborted) throw e; d.status = 'failed'; d.error = e.message; job.failures.push({ documentKey: d.key, message: e.message }); }
         } else if (job.stage === 'materials') {
           const t = job.tasks.find(t => t.status === 'pending');
@@ -51,7 +51,7 @@ export async function workflowAction(service, { projectId, action = 'status', jo
           job.inFlight = { kind: 'material', documentKey: t.documentKey, offset: t.offset }; await save(file, job);
           try {
             const p = await service.getProject(projectId);
-            let asset = (p.visualAssets ?? []).filter(a => a.documentKey === t.documentKey && !a.parentAssetId && p.activeVisuals?.[a.originKey] === a.id && a.sourceSha256 === job.documents.find(d => d.key === t.documentKey)?.sha256)[t.offset];
+            let asset = (p.visualAssets ?? []).find(a => t.originKey && a.originKey === t.originKey && a.documentKey === t.documentKey && !a.parentAssetId && p.activeVisuals?.[a.originKey] === a.id && a.sourceSha256 === job.documents.find(d => d.key === t.documentKey)?.sha256);
             // prepareImageAudit preserves registered content and persists before checkpoint advancement.
             if (!asset || asset.status !== 'ready') { const r = await service.prepareImageAudit({ projectId, documentKey: t.documentKey, offset: t.offset, limit: 1, signal }); asset = r.selectedAssets[0]; }
             if (!asset || asset.status !== 'ready') throw new Error(asset?.error ?? 'Asset could not be rendered');

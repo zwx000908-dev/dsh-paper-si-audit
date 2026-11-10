@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { zipSync, strToU8 } from 'fflate';
 import { createCanvas } from '@napi-rs/canvas';
 import { AuditService } from '../src/service.js';
 async function setup(t) {
@@ -67,4 +68,14 @@ test('failed source and changed rules cannot be used to close a disappeared issu
   await service.configureScientific({ projectId: p.id, options: { nmrIntegralTolerance: 1 } });
   const second = await service.runAudit({ projectId: p.id }), row = second.revisionLedger.items.find(r => r.id === tracked.id); assert.equal(row.state, 'cannot_revalidate');
   await assert.rejects(service.revalidateIssue({ projectId: p.id, runId: second.id, trackingId: row.id, status: 'fixed', reason: 'test', citations: row.currentCitations }), /closure refused/);
+});
+
+test('pre-rendered later DOCX media does not change inventory-task identity or skip earlier media', async t => {
+  const { service, p, add } = await setup(t); await add('main.txt', 'Main', 'main');
+  const c = createCanvas(100, 100), x = c.getContext('2d'); x.fillStyle = 'white'; x.fillRect(0, 0, 100, 100); x.fillStyle = 'black'; x.fillRect(20, 20, 60, 60); const png = c.toBuffer('image/png');
+  const zip = { 'word/document.xml': strToU8('<w:document xmlns:w="w" xmlns:r="r" xmlns:a="a"><w:body><w:p><w:r><w:t>Images</w:t></w:r><a:blip r:embed="r1"/><a:blip r:embed="r2"/><a:blip r:embed="r3"/></w:p></w:body></w:document>'), 'word/_rels/document.xml.rels': strToU8('<Relationships><Relationship Id="r1" Target="media/a.png"/><Relationship Id="r2" Target="media/b.png"/><Relationship Id="r3" Target="media/c.png"/></Relationships>'), 'word/media/a.png': png, 'word/media/b.png': png, 'word/media/c.png': png };
+  await add('si.docx', zipSync(zip), 'si'); const doc = (await service.getProject(p.id)).documents.find(d => d.role === 'si');
+  await service.prepareImageAudit({ projectId: p.id, documentKey: doc.key, offset: 1, limit: 1 });
+  const job = await service.workflow({ projectId: p.id, action: 'start', ocr: false, maxSteps: 10 });
+  assert.equal(job.tasks.length, 3); assert.equal(new Set(job.tasks.map(t => t.assetId)).size, 3); assert.equal(job.coverage.imageDuplicates.checkedAssets, 3); assert.equal(job.coverage.imageDuplicates.skipped.length, 0);
 });
