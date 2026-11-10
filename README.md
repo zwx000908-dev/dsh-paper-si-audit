@@ -17,10 +17,10 @@
 
 ```powershell
 dsh --version
-dsh plugin --profile paper-audit add github:zwx000908-dev/paper-si-audit#v0.2.0
+dsh plugin --profile paper-audit add github:zwx000908-dev/dsh-paper-si-audit#v0.2.0
 ```
 
-也可在 [v0.2.0 Release](https://github.com/zwx000908-dev/paper-si-audit/releases/tag/v0.2.0) 下载 `dsh-paper-si-audit-0.2.0.tgz`，核对同页的 SHA256 后安装：
+也可在 [v0.2.0 Release](https://github.com/zwx000908-dev/dsh-paper-si-audit/releases/tag/v0.2.0) 下载 `dsh-paper-si-audit-0.2.0.tgz`，核对同页的 SHA256 后安装：
 
 ```powershell
 dsh plugin --profile paper-audit add ./dsh-paper-si-audit-0.2.0.tgz

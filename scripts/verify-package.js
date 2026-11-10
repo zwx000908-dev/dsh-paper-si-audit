@@ -1,35 +1,50 @@
-import { execFileSync } from 'node:child_process';
 import { readFile, writeFile, mkdir, mkdtemp } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import tar from 'tar-stream';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const sourceManifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const archive = path.join(root, `dist/dsh-paper-si-audit-${sourceManifest.version}.tgz`);
-const listingBytes = execFileSync('tar', ['-tf', archive], { windowsHide: true });
-const utf8Listing = listingBytes.toString('utf8');
-const listing = process.platform === 'win32' && utf8Listing.includes('\uFFFD') ? new TextDecoder('gb18030').decode(listingBytes) : utf8Listing;
-const members = listing.trim().split(/\r?\n/);
-assert.ok(members.length >= 20);
+const archiveBytes = await readFile(archive);
+// Parse the UTF-8 tar names in Node; system tar on an English Windows runner
+// can reject valid non-ASCII filenames using its local codepage.
+const contents = new Map();
+const extractor = tar.extract();
+extractor.on('entry', (header, stream, next) => {
+  const chunks = [];
+  if (header.type !== 'file' || contents.has(header.name)) { stream.resume(); extractor.destroy(new Error('Unsupported or duplicate archive entry')); return; }
+  stream.on('data', chunk => chunks.push(chunk));
+  stream.on('end', () => { contents.set(header.name, Buffer.concat(chunks)); next(); });
+  stream.on('error', error => extractor.destroy(error));
+});
+await new Promise((resolve, reject) => { extractor.once('finish', resolve); extractor.once('error', reject); extractor.end(gunzipSync(archiveBytes, { maxOutputLength: 8 * 1024 * 1024 })); });
+const members = [...contents.keys()];
 for (const member of members) {
-  assert.ok(member.startsWith('package/') && !member.split('/').includes('..'));
+  assert.ok(member.startsWith('package/') && !/[\\:\0]/.test(member) && member.split('/').every(part => part !== '' && part !== '.' && part !== '..'), `Unsafe archive path: ${member}`);
   assert.ok(!/(?:node_modules|\.audit-data|test-output|\.npm-cache|\/outputs\/|\/paper\/|\/\.env(?:\.|$))/.test(member));
 }
-const manifest = JSON.parse(execFileSync('tar', ['-xOf', archive, 'package/package.json'], { encoding: 'utf8', windowsHide: true }));
+assert.ok(members.length >= 20);
+const manifest = JSON.parse(contents.get('package/package.json').toString('utf8'));
 assert.equal(manifest.name, 'dsh-paper-si-audit');
 assert.equal(manifest.version, sourceManifest.version);
 assert.equal(manifest.engines.dsh, '0.2.2-rc.1');
 assert.equal(manifest.engines.node, '>=24.9.0');
 assert.ok(manifest.keywords.includes('dsh-plugin'));
-assert.equal(manifest.repository.url, 'git+https://github.com/zwx000908-dev/paper-si-audit.git');
+assert.equal(manifest.repository.url, 'git+https://github.com/zwx000908-dev/dsh-paper-si-audit.git');
 for (const member of [manifest.main, manifest.dsh.bundle.patch, ...Object.values(manifest.bin), 'src/service.js', 'src/engine.js', 'src/profiles.js', 'src/parsers.js', 'src/report.js', 'src/stoichiometry.js', 'src/version.js', 'src/hrms.js', 'src/isotope-masses.json', 'src/image-tables.js', 'scripts/doctor-harness.js', 'profiles/custom-demo.yaml', 'docs/VALIDATION.md', 'docs/HRMS.md', 'docs/IMAGE-TABLES.md']) assert.ok(members.includes('package/' + member.replace(/^\.\//, '')), `Missing ${member}`);
 assert.ok(!members.some(m => m.startsWith('package/web/') || m === 'package/src/server.js'), 'Removed web panel/server must not be packaged');
 assert.ok(!manifest.scripts?.start, 'Removed web launch script must not be packaged');
 for (const member of ['CHANGELOG.md', 'icon.svg', 'locale/en.json', 'locale/zh.json']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
 await mkdir(path.join(root, 'test-output'), { recursive: true });
 const unpacked = await mkdtemp(path.join(root, 'test-output/packed-plugin-'));
-execFileSync('tar', ['-xf', archive, '-C', unpacked], { windowsHide: true });
+for (const [member, data] of contents) {
+  const target = path.join(unpacked, ...member.split('/'));
+  await mkdir(path.dirname(target), { recursive: true });
+  await writeFile(target, data, { flag: 'wx' });
+}
 const plugin = await import(pathToFileURL(path.join(unpacked, 'package/src/plugin.js')));
 const nativeTools = plugin.createToolDefinitions({});
 assert.equal(nativeTools.length, 22);
