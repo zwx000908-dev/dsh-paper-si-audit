@@ -28,7 +28,7 @@ for (const c of manifest.cases) {
   cases.push({ id: c.id, paperId: c.paperId, category: c.category, expected: c.expected, observed, failures, matches: hits.map(i => i.calculation), limitedToExact: !policy.whole && !policy.local });
 }
 const group = key => Object.fromEntries([...new Set(cases.map(c => c[key]))].map(value => [value, evaluatePredictions(cases.filter(c => c[key] === value))]));
-const report = { dataset: manifest.dataset, engineVersion: VERSION, manifestSha256: sha(raw), upstreamCommit: manifest.upstreamCommit,
+const report = { dataset: manifest.dataset, engineVersion: VERSION, manifestSha256: sha(JSON.stringify(manifest)), manifestHashEncoding: 'UTF-8 JSON.stringify(parsed manifest), independent of whitespace and CRLF', upstreamCommit: manifest.upstreamCommit,
   independentOfPluginLabels: true, newIndependentExpertReview: false, paperCount: manifest.paperIds.length,
   papersWithAllImagesAvailable: manifest.paperIds.filter(id => cases.filter(c => c.paperId === id).every(c => !c.failures.length)).length,
   status: cases.some(c => c.failures.length) ? 'incomplete_inputs' : 'evaluated_limited_scope',

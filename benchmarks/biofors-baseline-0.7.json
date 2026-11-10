@@ -1,7 +1,8 @@
 {
   "dataset": "biofors-external-test-subset-v1",
   "engineVersion": "0.7.0",
-  "manifestSha256": "cbfe6b714ff3c0c52a07add18941aef19a84673ad09b48e053010262f29bead1",
+  "manifestSha256": "f558fde75bec743d62d37ecef464ccc654fa83621fabe1f3ae7a3d30dc8814c5",
+  "manifestHashEncoding": "UTF-8 JSON.stringify(parsed manifest), independent of whitespace and CRLF",
   "upstreamCommit": "19a2b9b10471d4ca053a457978cfe03ea9c8c8eb",
   "independentOfPluginLabels": true,
   "newIndependentExpertReview": false,
