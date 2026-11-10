@@ -365,7 +365,7 @@ function formatChecks(facts, profile) {
   return { issues, checked, matchedRules, unmatchedRuleIds: profile.rules.filter(r => r.enabled && !matchedIds.has(r.id)).map(r => r.id), disabledRuleIds: profile.rules.filter(r => !r.enabled).map(r => r.id) };
 }
 
-export function auditDocuments(documents, profile = defaultProfile(), { pairBudget = AUDIT_LIMITS.pairBudget } = {}) {
+export function auditDocuments(documents, profile = defaultProfile(), { pairBudget = AUDIT_LIMITS.pairBudget, crossDocument = true } = {}) {
   if (!Array.isArray(documents) || documents.length > 100) throw new Error('documents 必须是最多 100 个文档的数组');
   if (!Number.isInteger(pairBudget) || pairBudget < 1 || pairBudget > AUDIT_LIMITS.pairBudget) throw new Error(`pairBudget 必须为 1–${AUDIT_LIMITS.pairBudget} 的整数`);
   const config = validateProfile(profile); const facts = documents.flatMap(extractFacts); const issues = [];
@@ -383,7 +383,7 @@ export function auditDocuments(documents, profile = defaultProfile(), { pairBudg
     if (doc.coverage?.status !== 'complete') issues.push(issue('coverage', '文档存在未完成的解析范围', `${doc.name}：${(doc.coverage?.warnings ?? ['未提供解析覆盖状态']).join('；')}`, (doc.blocks ?? []).slice(0, 1).map(b => b.id), { evidenceStatus: 'insufficient', severity: 'medium', documentId: doc.id }));
     if (!(doc.blocks ?? []).length || !facts.some(f => f.documentId === doc.id)) issues.push(issue('coverage', '未提取到支持的科学数值字段', `${doc.name} 未提取到当前规则支持的字段。不能将零告警解释为全文已通过；可提供明确表格或用宿主模型辅助登记候选证据。`, (doc.blocks ?? []).slice(0, 1).map(b => b.id), { evidenceStatus: 'insufficient', documentId: doc.id }));
   }
-  const cross = crossChecks(facts, pairBudget); const format = formatChecks(facts, config); issues.push(...cross.issues, ...format.issues);
+  const cross = crossChecks(crossDocument?facts:[], pairBudget); const format = formatChecks(facts, config); issues.push(...cross.issues, ...format.issues);
   if (cross.truncated) issues.push(issue('coverage', '跨文档配对达到本次预算，存在未检查部分', `本次最多检查 ${cross.pairBudget} 个同实体、可比字段的跨文档候选配对；已访问 ${cross.visitedPairs}/${cross.candidatePairs}，剩余 ${cross.remainingPairs} 个配对未检查。请按实验或化合物拆分项目后继续；未检查部分不能视为通过。`, [], { severity: 'medium', evidenceStatus: 'insufficient', pairBudget: cross.pairBudget, remainingPairs: cross.remainingPairs }));
   const byId = new Map(issues.map(i => [i.id, i]));
   return { facts, issues: [...byId.values()], coverage: {
@@ -395,7 +395,7 @@ export function auditDocuments(documents, profile = defaultProfile(), { pairBudg
     massSpectrometry: { labelledValues: facts.filter(f => f.measurementClass === 'mass_spectrometry').length, reportedHighResolution: facts.filter(f => f.measurementClass === 'mass_spectrometry' && f.resolution === 'reported_high').length, unspecifiedResolution: facts.filter(f => f.measurementClass === 'mass_spectrometry' && f.resolution === 'unspecified').length, note: 'Legacy hrms.mass_to_charge formatting accepts labelled MS values; EI/ESI-MS labels alone do not establish high resolution. No formula/exact-mass validation is performed.' },
     pairBudget: cross.pairBudget, candidatePairs: cross.candidatePairs, visitedPairs: cross.visitedPairs, remainingPairs: cross.remainingPairs, truncated: cross.truncated,
     formatChecks: format.checked, unmatchedRuleIds: format.unmatchedRuleIds, disabledRuleIds: format.disabledRuleIds,
-    completedChecks: ['supported_numeric_extraction', ...(cross.truncated ? [] : ['explicit_identity_cross_document_comparison', 'ee_er_conversion']), 'configured_number_and_unit_format'],
+    completedChecks: ['supported_numeric_extraction', ...(cross.truncated||!crossDocument ? [] : ['explicit_identity_cross_document_comparison', 'ee_er_conversion']), 'configured_number_and_unit_format'],
     incompleteChecks: cross.truncated ? ['explicit_identity_cross_document_comparison', 'ee_er_conversion'] : [],
     notPerformed: ['全文语义判断（需要宿主模型）', '谱图/化学结构确证', '未明确标注的实验条件自动对齐', '产率原料质量平衡复算', 'HRMS 分子式精确质量复算', '图表引用完整性', '原始数据真实性鉴定'],
     note: '解析完成不等于所有科学内容已核对；本次覆盖仅限已提取字段、明确实验身份和配置规则。',

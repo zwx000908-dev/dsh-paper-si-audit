@@ -7,7 +7,10 @@ export function summarizeIssues(issues) {
 }
 export function renderMarkdown(run, evidenceFrom) {
   const summary = summarizeIssues(run.issues);
+  const presentation=run.exportPresentation??run.appliedSettings?.effective.report??{includeImages:true,includeEvidence:true};
   const lines = ['# Paper–SI Audit 核对报告', '', `运行：${run.id}`, `日期：${run.createdAt}`, `插件版本：${run.engineVersion}`, `目标宿主：${run.hostTarget}`, `状态：${run.status}`, `执行入口：${run.execution?.entryPoint ?? 'legacy_unknown'}（入口标签不替代宿主工具调用日志）`, `模板：${line(run.profile.profile?.name)} / ${line(run.profile.profile?.version)}`, '', '在本次材料和已完成检查范围内报告结果；未告警不表示全文正确。', '语义核对：' + run.coverage.semanticStatus + '。精确引用匹配不等于科学判断成立。', '', '## 结果摘要', '', `共 ${summary.total} 条候选：数据 ${summary.byType.data ?? 0}、语义 ${summary.byType.semantic ?? 0}、对应待确认 ${summary.byType.alignment ?? 0}、覆盖 ${summary.byType.coverage ?? 0}、格式 ${summary.formatHints}。`, '格式提示按规则分组列于后文，不计为科学数据错误；完整逐条记录保留在 JSON/CSV 导出及项目台账中。', '', '## 覆盖范围', '', '| 文件 | 角色 | 解析状态 | 单位数 | 警告 |', '|---|---|---|---|---|', ...run.coverage.documents.map(d => `| ${line(d.name)} | ${d.role} | ${d.status} | ${d.parsedUnits}/${d.totalUnits} | ${line((d.warnings ?? []).join('; '))} |`), ''];
+  if(run.appliedSettings) lines.push('## 本次实际设置', '', '```json', JSON.stringify(run.appliedSettings,null,2), '```', '', '停用或排除不等于通过；展示开关不删除 JSON 原始证据。', '');
+  if(run.settingsChangedSinceRun) lines.push('**项目设置已变更，本报告是旧快照；请重新核对。**','');
   if (run.visualReviewsChangedSinceRun) lines.push('**视觉模型复核记录已更新，本报告为旧快照，请重新运行核对再导出。**', '');
   if (run.visualReview) {
     const v=run.visualReview.coverage;
@@ -41,13 +44,13 @@ export function renderMarkdown(run, evidenceFrom) {
       if (issue.suggestion) lines.push('建议：' + (typeof issue.suggestion === 'string' ? issue.suggestion : JSON.stringify(issue.suggestion)), '');
     } else for (const [label, value] of [['复算', issue.calculation], ['建议', issue.suggestion]]) if (value) lines.push(`${label}：${typeof value === 'string' ? value : JSON.stringify(value)}`, '');
     const used = new Set();
-    if (issue.previewPath) lines.push(`![疑似重复区域对照](<${issue.previewPath.replaceAll('\\', '/')}>)`, '', '红框为实际参与比较的区域；局部检测窗口不等于精确编辑边界。', '');
-    for (const image of issue.imageEvidence ?? []) {
+    if (issue.previewPath && presentation.includeImages) lines.push(`![疑似重复区域对照](<${issue.previewPath.replaceAll('\\', '/')}>)`, '', '红框为实际参与比较的区域；局部检测窗口不等于精确编辑边界。', '');
+    for (const image of presentation.includeEvidence?(issue.imageEvidence ?? []):[]) {
       lines.push(`图像证据：${line(image.name)} · ${line(image.locator?.label)} · ${image.assetId}`, '', `来源 SHA256：${image.sourceSha256}；图像 SHA256：${image.rasterSha256}`, '');
       if (image.path) lines.push(`[打开原图](<${image.path.replaceAll('\\', '/')}>)`, '');
       if (image.locations?.length > 1) lines.push('出现位置：' + image.locations.map(l => `XML ¶${l.paragraph} (${l.part})`).join('；'), '');
     }
-    for (const evidenceId of issue.evidenceIds) {
+    for (const evidenceId of presentation.includeEvidence?issue.evidenceIds:[]) {
       try {
         const e = evidenceFrom(run, evidenceId);
         if (used.has(e.block.id)) continue; used.add(e.block.id);

@@ -1,7 +1,8 @@
 import { provideVisualPair, renderVisualPair, visualRoute, provideVisualComparison, renderVisualComparison } from './visual-review-tools.js';
 import path from 'node:path';
-import { homedir } from 'node:os';
-import Schema from '@deepseek-ai/schemastery';
+import { Config } from './settings-schema.js';
+import { defaultsFromConfig } from './settings.js';
+export { Config };
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { AuditService } from './service.js';
 import { parseProfile } from './profiles.js';
@@ -11,16 +12,9 @@ import { calculateExperiment } from './experimental-math.js';
 export const name = 'paper-si-audit';
 export const inject = ['tools', 'systemPrompt'];
 
-export const Config = Schema.object({
-  dataDir: Schema.string().default(path.join(homedir(), '.paper-si-audit'))
-    .description('核对项目存储目录；源文件不会被覆盖。建议填写绝对路径。'),
-  allowedRoots: Schema.array(Schema.string()).default([])
-    .description('允许导入论文的目录列表。默认空列表不允许读取文件；请填写实际授权的绝对目录。'),
-});
-
 export const AUDIT_GUIDANCE = `Paper–SI Audit is an evidence-grounded manuscript/SI audit plugin.
 Use paper_audit_compounds to inspect candidate dossiers and source records. Never equate identical labels with confirmed identity. Save only user-selected material requirements; set_compound and review_spectrum record explicit human decisions, not model approval. Use read_spectrum for explicit image labels and separately cited document captions; fieldOrigins must distinguish them. Bare trace numbers are not integrals. Experimental calculators use product mmol directly when available; mass-based yield needs molar mass. Both need an explicit limiting amount and stoichiometric factor; no default 1:1 assumption or substitution of HRMS m/z.
-Use paper_audit_workflow start/resume for requested whole-project coverage; follow nextAction until null, inspect failures and OCR scope. It persists checkpoints and never accepts OCR. Use paper_audit_cross_references for explicit graph/table targets and supported table claims; unlocated is not absent. Use paper_audit_experiments for linked general procedures and local prose. Distinguish confirmed calculations from conditional scenarios and not_found_in_checked_scope/not_linked/ambiguous gaps. Never report a hypothetical 1:1 or 1-equiv baseline as verified. paper_audit_experiment_context records only explicit user interpretations, with exact source citations; never auto-approve them. Use paper_audit_revisions to track historical issues; paper_audit_revalidate is only for an explicit user decision with current exact citations. Never auto-close disappeared issues.
+Read paper_audit_settings for effective defaults and model capabilities. Only change project preferences with explicit user intent using paper_audit_configure_settings; task settingsJson is temporary. Global defaults affect newly created projects only. Disabled or excluded checks never mean passed. Use paper_audit_workflow start/resume for requested whole-project coverage; follow nextAction until null, inspect failures and OCR scope. It persists checkpoints and never accepts OCR. Use paper_audit_cross_references for explicit graph/table targets and supported table claims; unlocated is not absent. Use paper_audit_experiments for linked general procedures and local prose. Distinguish confirmed calculations from conditional scenarios and not_found_in_checked_scope/not_linked/ambiguous gaps. Never report a hypothetical 1:1 or 1-equiv baseline as verified. paper_audit_experiment_context records only explicit user interpretations, with exact source citations; never auto-approve them. Use paper_audit_revisions to track historical issues; paper_audit_revalidate is only for an explicit user decision with current exact citations. Never auto-close disappeared issues.
 Use paper_audit_create and paper_audit_add_document only for the user-selected files within configured allowedRoots.
 Run deterministic checks with paper_audit_run. Inspect coverage, issues, and source blocks using the paged tools.
 For NMR, inspect nmr_formula issues and coverage.nmrFormula. Reported 1H integrals and 13C counts are checked against associated molecular formula candidates, not raw spectra or structural identity. Missing integrals and ambiguous ion formulas require review.
@@ -84,6 +78,8 @@ function summarizeRun(run) {
     changes: run.changes,
     revisionCounts: run.revisionLedger?.counts,
     visualReviewsChangedSinceRun: run.visualReviewsChangedSinceRun,
+    settingsChangedSinceRun: run.settingsChangedSinceRun,
+    appliedSettings: run.appliedSettings,
     profileChangedSinceRun: run.profileChangedSinceRun,
     hrmsSettingsChangedSinceRun: run.hrmsSettingsChangedSinceRun,
     imageTablesChangedSinceRun: run.imageTablesChangedSinceRun,
@@ -116,9 +112,24 @@ export function createToolDefinitions(service, bridge = {}) {
   });
 
   return [
+    tool('paper_audit_settings', 'Read plugin defaults, captured project settings and effective task overrides. Shows current model image capability without exposing credentials. Does not change settings.', {
+      projectId: optionalId('Optional project ID.'), settingsJson: optionalId('Optional canonical task settings JSON to preview.'),
+    }, async (args, exec) => {
+      const result = await service.getSettings({...args, settings: args.settingsJson ? JSON.parse(args.settingsJson) : {}});
+      const route = visualRoute(exec), llm = bridge.ctx?.get?.('llm');
+      let modelStatus = { ...route, status: 'unavailable' };
+      if (llm && route.provider && route.model) try {
+        const info = await llm.resolveModelInfo(route.provider, route.model, exec?.signal);
+        modelStatus = {...route, status:'resolved', acceptsImages: !!info?.inputModalities?.includes('image'), pngAttachments: !!bridge.ctx?.get?.('attachments')?.imageLimits?.mediaTypes?.includes('image/png')};
+      } catch { modelStatus.reason = 'Unable to resolve current model capability'; }
+      return {...result, modelStatus};
+    }),
+    tool('paper_audit_configure_settings', 'Save explicit user project preferences, or reset to captured defaults. Existing run snapshots remain unchanged; rerun is required. Never use this to infer scientific assumptions or journal rules.', {
+      projectId: id('Project ID.'), settingsJson: optionalId('Canonical partial settings JSON; see paper_audit_settings.'), reset: {type:'boolean', description:'Reset all project settings to captured defaults; default false.'},
+    }, args => service.configureSettings({...args, settings: args.settingsJson ? JSON.parse(args.settingsJson) : {}})),
     tool('paper_audit_visual_review', 'Start/status/tasks/retry_failed/cancel/extend a persisted visual-agent review queue independent of pixel-detector hits. Default compares all selected pairs and within-image regions; preserve excluded assets/pairs. Start after preparing images. Follow nextAction; after model submissions rerun paper_audit_run to export findings. Completed is not scientifically verified.', {
-      projectId: id('Project ID.'), jobId: optionalId('Job ID; defaults to active visual review.'), taskId: optionalId('Submitted pair ID for reopen.'), reason: optionalId('Reopen reason; records why the model observation needs correction.'), action: optionalId('start, status, tasks, retry_failed, cancel, extend, reopen.'), optionsJson: optionalId('Start JSON: assetIds optional, pairs optional explicit [assetIdA,assetIdB] array (excluded combinations disclosed); mode all(default) or same_type; includeSelf true; maxAssets 1-500 default 200; maxPairs 1-10000 default 2000 per batch. Extend schedules the next batch.'), ...paging,
-    }, args => service.visualReview({...args,options:args.optionsJson?JSON.parse(args.optionsJson):{}})),
+      projectId: id('Project ID.'), jobId: optionalId('Job ID; defaults to active visual review.'), taskId: optionalId('Submitted pair ID for reopen.'), reason: optionalId('Reopen reason; records why the model observation needs correction.'), action: optionalId('start, status, tasks, retry_failed, cancel, extend, reopen.'), settingsJson: optionalId('Start-only canonical task settings JSON; inherits project defaults.'), optionsJson: optionalId('Start JSON: assetIds optional, pairs optional explicit [assetIdA,assetIdB] array (excluded combinations disclosed); mode all(default) or same_type; includeSelf true; maxAssets 1-500 default 200; maxPairs 1-10000 default 2000 per batch. Extend schedules the next batch.'), ...paging,
+    }, args => service.visualReview({...args,settings:args.settingsJson?JSON.parse(args.settingsJson):{},options:args.optionsJson?JSON.parse(args.optionsJson):{}})),
     tool('paper_audit_visual_pair', 'Provide both original images or detail crops for the next independent visual-review task to the active image-capable Harness model. Saves source/hash/route receipt. Original views required before crops. If delivery fails, do not claim inspection; switch configured model or fix inputs and retry. Read instructions and both attachments before submitting.', {
       projectId: id('Project ID.'), jobId: optionalId('Visual review job ID.'), taskId: optionalId('Pair ID; defaults to next unfinished task.'), cropsJson: optionalId('Optional [A,B], each null or {x,y,width,height} in original asset pixels. For self-comparison use two distinct regions of the same image.'),
     }, (args,exec) => provideVisualPair(service,args,bridge,exec), renderVisualPair),
@@ -154,8 +165,8 @@ export function createToolDefinitions(service, bridge = {}) {
       projectId: id('Project ID.'), runId: optionalId('Run ID.'), ...paging,
     }, async args => { const r = await service.getRun(args); return { runId: r.id, ...paginate([...(r.experimentalProseRecords ?? []), ...(r.experimentalRecords ?? [])], args) }; }),
     tool('paper_audit_workflow', 'Start/resume/status/cancel/retry_failed a durable whole-project rendering, optional provisional OCR, and deterministic audit pipeline. Start or resume performs bounded steps; follow nextAction until null. Source/settings changes require a new job. Finished pipeline does not mean every scientific check passed.', {
-      projectId: id('Project ID.'), action: optionalId('start, resume, status (default), cancel, retry_failed.'), jobId: optionalId('Job ID; default active job.'), maxSteps: { type: 'integer', description: 'Work units per call, 1–25, default 3.' }, ocr: { type: 'boolean', description: 'On start, read every prepared image as provisional text; default true. No automatic OCR approval.' },
-    }, (args, exec) => service.workflow({ ...args, signal: exec?.signal, executionEvidence: { toolCallId: exec?.toolCallId, toolName: 'paper_audit_workflow' } })),
+      projectId: id('Project ID.'), action: optionalId('start, resume, status (default), cancel, retry_failed.'), jobId: optionalId('Job ID; default active job.'), settingsJson: optionalId('Start-only canonical task settings JSON, frozen on resume.'), maxSteps: { type: 'integer', description: 'Work units per call, 1–25; defaults to captured workflow settings.' }, ocr: { type: 'boolean', description: 'On start, read every prepared image as provisional text; default true. No automatic OCR approval.' },
+    }, (args, exec) => service.workflow({ ...args, settings: args.settingsJson ? JSON.parse(args.settingsJson) : {}, signal: exec?.signal, executionEvidence: { toolCallId: exec?.toolCallId, toolName: 'paper_audit_workflow' } })),
     tool('paper_audit_material_text', 'Read provisional full-page/image OCR from the workflow. Text-only OCR does not validate tables, spectra, structures or numerical conclusions. Use row-specific table/spectrum tools for scientific checks.', {
       projectId: id('Project ID.'), readingId: optionalId('Choose a reading for paged OCR word boxes.'), ...paging,
     }, async args => { const items = await service.getMaterialReadings(args); if (!args.readingId) return paginate(items.map(({ rawText, words, ...r }) => ({ ...r, wordCount: words.length, preview: rawText.slice(0, 400) })), args); const r = items.find(r => r.id === args.readingId); if (!r) throw new Error('Unknown reading'); const { words, rawText, ...metadata } = r; return { ...metadata, ...paginate(words, args) }; }),
@@ -217,8 +228,8 @@ export function createToolDefinitions(service, bridge = {}) {
     }, args => service.setProfile({ projectId: args.projectId, profile: parseProfile(args.profileText) })),
 
     tool('paper_audit_run', 'Run deterministic checks and freeze a new audit snapshot. Returns summary; use issues/blocks/evidence tools for details. This does not automatically complete semantic review.', {
-      projectId: id('Project ID.'),
-    }, async (args, exec) => summarizeRun(await service.runAudit({ ...args, executionEvidence: { toolCallId: exec?.callId ?? null } }))),
+      projectId: id('Project ID.'), settingsJson: optionalId('Canonical task-only settings JSON; does not change project defaults.'),
+    }, async (args, exec) => summarizeRun(await service.runAudit({ ...args, settings: args.settingsJson ? JSON.parse(args.settingsJson) : {}, executionEvidence: { toolCallId: exec?.callId ?? null } }))),
 
     tool('paper_audit_run_summary', 'Read the latest or a specific audit-run summary, including parsing coverage and semantic-review limitations.', {
       projectId: id('Project ID.'), runId: optionalId('Optional run ID; omitted selects latest.'),
@@ -285,10 +296,10 @@ export function createToolDefinitions(service, bridge = {}) {
 
     tool('paper_audit_export', 'Export an audit report, issue CSV, or JSON into the project report directory. Does not modify source files.', {
       projectId: id('Project ID.'), runId: optionalId('Optional run ID.'),
-      format: { type: 'string', enum: ['md', 'json', 'csv'], required: true },
+      format: { type: 'string', enum: ['md', 'json', 'csv'], description:'Default from run snapshot.' }, includeImages: {type:'boolean', description:'Markdown preview images.'}, includeEvidence: {type:'boolean', description:'Markdown evidence sections; JSON retains full evidence.'},
     }, async args => {
       const result = await service.exportReport(args);
-      return { path: result.path, format: result.format, characters: result.content?.length ?? 0 };
+      return { path: result.path, format: result.format, settingsPath:result.settingsPath, characters: result.content?.length ?? 0 };
     }),
 
     tool('paper_audit_prepare_visuals', 'Extract only explicitly selected document pages or image parts for table review. Preserves source hashes and location; this does not automatically read all figures or spectra.', {
@@ -388,7 +399,7 @@ export async function apply(ctx, config) {
   if (!path.isAbsolute(config.dataDir) || config.allowedRoots.some(root => !path.isAbsolute(root))) {
     throw new Error('Paper–SI Audit dataDir and allowedRoots must use absolute paths');
   }
-  const service = new AuditService({ dataDir: config.dataDir, allowedRoots: config.allowedRoots, executionPath: 'harness_native_tools' });
+  const service = new AuditService({ dataDir: config.dataDir, allowedRoots: config.allowedRoots, executionPath: 'harness_native_tools', defaults: defaultsFromConfig(config.defaults ?? {}) });
   await service.init();
   registerAuditTools(ctx, service);
 }

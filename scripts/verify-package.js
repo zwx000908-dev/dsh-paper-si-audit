@@ -34,7 +34,7 @@ assert.equal(manifest.engines.dsh, '0.2.2-rc.1');
 assert.equal(manifest.engines.node, '>=24.9.0');
 assert.ok(manifest.keywords.includes('dsh-plugin'));
 assert.equal(manifest.repository.url, 'git+https://github.com/zwx000908-dev/dsh-paper-si-audit.git');
-for (const member of [manifest.main, manifest.dsh.bundle.patch, ...Object.values(manifest.bin), 'src/service.js', 'src/engine.js', 'src/profiles.js', 'src/parsers.js', 'src/report.js', 'src/stoichiometry.js', 'src/version.js', 'src/hrms.js', 'src/isotope-masses.json', 'src/image-tables.js', 'scripts/doctor-harness.js', 'profiles/custom-demo.yaml', 'docs/VALIDATION.md', 'docs/HRMS.md', 'docs/IMAGE-TABLES.md']) assert.ok(members.includes('package/' + member.replace(/^\.\//, '')), `Missing ${member}`);
+for (const member of [manifest.main, manifest.dsh.bundle.patch, ...Object.values(manifest.bin), 'src/settings.js', 'src/settings-schema.js', 'docs/SETTINGS.md', 'src/service.js', 'src/engine.js', 'src/profiles.js', 'src/parsers.js', 'src/report.js', 'src/stoichiometry.js', 'src/version.js', 'src/hrms.js', 'src/isotope-masses.json', 'src/image-tables.js', 'scripts/doctor-harness.js', 'profiles/custom-demo.yaml', 'docs/VALIDATION.md', 'docs/HRMS.md', 'docs/IMAGE-TABLES.md']) assert.ok(members.includes('package/' + member.replace(/^\.\//, '')), `Missing ${member}`);
 assert.ok(!members.some(m => m.startsWith('package/web/') || m === 'package/src/server.js'), 'Removed web panel/server must not be packaged');
 assert.ok(!manifest.scripts?.start, 'Removed web launch script must not be packaged');
 for (const member of ['CHANGELOG.md', 'icon.svg', 'locale/en.json', 'locale/zh.json']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
@@ -47,7 +47,7 @@ for (const [member, data] of contents) {
 }
 const plugin = await import(pathToFileURL(path.join(unpacked, 'package/src/plugin.js')));
 const nativeTools = plugin.createToolDefinitions({});
-assert.equal(nativeTools.length, 45);
+assert.equal(nativeTools.length, 47);
 assert.ok(nativeTools.some(tool => tool.name === 'paper_audit_prepare_image_audit'));
 for (const member of ['src/nmr.js', 'src/image-duplicates.js', 'docs/NMR-AND-IMAGES.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
 for (const member of ['src/compounds.js', 'src/panels.js', 'src/spectrum-check.js', 'src/experimental-math.js', 'src/evaluation.js', 'src/scientific-config.js', 'docs/SCIENTIFIC-WORKFLOW.md', 'benchmarks/README.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);

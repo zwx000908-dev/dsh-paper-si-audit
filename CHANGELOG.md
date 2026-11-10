@@ -1,6 +1,14 @@
 # 0.6.0 (development)
 
 
+## 0.9.0 — Native settings and reproducible defaults
+
+- Add grouped Harness configuration for scope, enabled checks, format profiles, numerical tolerances, typed-image screening, visual budgets, OCR and report presentation.
+- Capture defaults at project creation; retain legacy projects; support persisted project patches, reset to captured defaults and task-only overrides.
+- Freeze effective settings in audit/visual/workflow jobs and reports. Mark excluded/disabled checks explicitly; changed settings invalidate queued work and cannot close disappeared findings.
+- Keep model routing and credentials in Harness. Add read-only model capability reporting, CSV settings sidecars and two native tools (47 total).
+- Preserve scientific interpretation confirmation and evidence records. This release adds configuration, not measured scientific detection accuracy. Stable v0.2.0 remains unchanged.
+
 ## 0.8.0 — Visual-agent review workflow
 
 - Schedule persisted image-pair and within-image review independently of pixel-detector hits, with explicit exclusions, batches, restart, retry and cancellation.

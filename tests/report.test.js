@@ -14,3 +14,11 @@ test('important issues retain exact bounded context and execution route', () => 
   const rendered = renderMarkdown(base([issue]), () => ({ document: { name: 'SI' }, block: { id: 'b', locator: { label: 'p37' }, text }, fact: { raw: '3', offset: 2000, end: 2001 } }));
   assert.match(rendered, /core_api/); assert.match(rendered, /3 mmol/); assert.match(rendered, /critical-candidate/); assert.match(rendered, /p37/); assert.ok(!rendered.includes('x'.repeat(1000)));
 });
+
+test('Markdown presentation toggles hide real preview and evidence independently without deleting findings',()=>{
+ const issue={id:'picture',type:'data',severity:'medium',evidenceStatus:'needs_review',title:'Candidate',description:'Review needed',evidenceIds:['f'],previewPath:'C:/fixture.png',imageEvidence:[]};
+ const run=base([issue]),evidence=()=>({document:{name:'SI'},block:{id:'b',locator:{label:'p1'},text:'DISTINCT_SOURCE_EVIDENCE'},fact:{raw:'DISTINCT_SOURCE_EVIDENCE',offset:0}});
+ const full=renderMarkdown(run,evidence);assert.match(full,/fixture.png/);assert.match(full,/DISTINCT_SOURCE_EVIDENCE/);
+ run.exportPresentation={includeImages:false,includeEvidence:false};const compact=renderMarkdown(run,evidence);assert.equal(compact.includes('fixture.png'),false);assert.equal(compact.includes('DISTINCT_SOURCE_EVIDENCE'),false);assert.match(compact,/Candidate/);assert.equal(run.issues[0].evidenceIds.length,1);
+ run.exportPresentation.includeEvidence=true;const quotes=renderMarkdown(run,evidence);assert.match(quotes,/DISTINCT_SOURCE_EVIDENCE/);assert.equal(quotes.includes('fixture.png'),false);
+});

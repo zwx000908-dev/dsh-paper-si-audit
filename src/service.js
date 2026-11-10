@@ -1,3 +1,4 @@
+import { builtInSettings, validateSettings, mergeSettings, projectSettings, resolveSettings, auditSettingsKey } from './settings.js';
 import { visualReviewAction, deliverVisualPair, submitVisualResult, visualReviewSnapshot, readVisualComparison } from './visual-review.js';
 import { IMAGE_TYPES, IMAGE_RULE_VERSION } from './image-rules.js';
 import { buildReviewGroups } from './review-groups.js';
@@ -49,12 +50,12 @@ async function atomic(file, value) {
 }
 
 export class AuditService {
-  constructor({ dataDir, allowedRoots = [], executionPath = 'core_api' } = {}) {
+  constructor({ dataDir, allowedRoots = [], executionPath = 'core_api', defaults = {} } = {}) {
     if (!dataDir || !path.isAbsolute(dataDir)) throw new Error('dataDir must be absolute');
     this.dataDir = path.resolve(dataDir);
     this.allowedRoots = allowedRoots.map(r => path.resolve(r));
     if (!['core_api', 'harness_native_tools', 'local_workbench', 'cli'].includes(executionPath)) throw new Error('Unknown execution entrypoint');
-    this.executionPath = executionPath;
+    this.executionPath = executionPath; this.defaults = validateSettings(defaults);
   }
   async init() {
     await mkdir(path.join(this.dataDir, 'projects'), { recursive: true });
@@ -84,11 +85,28 @@ export class AuditService {
     if (!selected.length) throw new Error('Configure allowedRoots before selecting source directories');
     const canonical = await Promise.all(selected.map(r => realpath(path.resolve(r))));
     if (canonical.some(r => !this.allowedRoots.some(a => within(a, r)))) throw new Error('Project roots exceed configured allowedRoots');
-    const project = { id: randomUUID(), name: clean(name, 200), roots: canonical, createdAt: new Date().toISOString(), documents: [], runIds: [], profile: defaultProfile(), profileRevision: 1, hrmsOptions: { ...DEFAULT_HRMS }, hrmsRevision: 0, visualAssets: [], imageTableIds: [], activeImageTables: {}, visualRevision: 0 };
+    const project = { id: randomUUID(), name: clean(name, 200), roots: canonical, createdAt: new Date().toISOString(), documents: [], runIds: [], profile: structuredClone(this.defaults.profile), profileRevision: 1, scientificOptions: structuredClone(this.defaults.scientific), settingsSnapshot: structuredClone(this.defaults), settingsOverrides: {}, settingsRevision: 0, hrmsOptions: { ...DEFAULT_HRMS, ...this.defaults.hrms }, hrmsRevision: 0, visualAssets: [], imageTableIds: [], activeImageTables: {}, visualRevision: 0 };
     await atomic(path.join(this.dir(project.id), 'project.json'), project);
     return project;
   }
   async getProject(projectId) { return json(path.join(this.dir(projectId), 'project.json')); }
+  async getSettings({projectId,settings={}}={}) {
+    if(!projectId && Object.keys(settings).length)throw new Error('Task settings preview requires projectId');
+    if(!projectId)return {pluginDefaults:structuredClone(this.defaults),storage:{dataDir:this.dataDir,allowedRoots:this.allowedRoots},note:'Defaults are captured only when creating a project; changing plugin configuration never rewrites existing projects.'};
+    const p=await this.getProject(projectId);return {projectId,pluginDefaults:structuredClone(this.defaults),...resolveSettings(p,settings)};
+  }
+  async configureSettings({projectId,settings={},reset=false}) {
+    if(typeof reset!=='boolean' || (reset && Object.keys(settings).length))throw new Error('Reset cannot be combined with a settings patch');
+    return this.locked(projectId,async()=>{
+      const p=await this.getProject(projectId);p.settingsSnapshot??=projectSettings(p);
+      const effective=reset?validateSettings(p.settingsSnapshot):validateSettings(mergeSettings(projectSettings(p),settings));
+      p.settingsOverrides=reset?{}:mergeSettings(p.settingsOverrides??{},settings);
+      p.profile=effective.profile;p.scientificOptions=effective.scientific;p.hrmsOptions={...(p.hrmsOptions??DEFAULT_HRMS),...effective.hrms};
+      p.settingsRevision=(p.settingsRevision??0)+1;p.scientificRevision=(p.scientificRevision??0)+1;p.profileRevision=(p.profileRevision??0)+1;p.hrmsRevision=(p.hrmsRevision??0)+1;
+      (p.settingsHistory??=[]).push({at:new Date().toISOString(),revision:p.settingsRevision,action:reset?'reset_to_captured_defaults':'patch',patch:structuredClone(settings)});
+      await atomic(path.join(this.dir(projectId),'project.json'),p);return {projectId,...resolveSettings(p),rerunRequired:true};
+    });
+  }
   async listProjects() {
     await this.init();
     const result = [];
@@ -364,19 +382,21 @@ export class AuditService {
       await atomic(file, table); p.visualRevision = (p.visualRevision ?? 0) + 1; await atomic(path.join(this.dir(projectId), 'project.json'), p); return record;
     });
   }
-  async runAudit({ projectId, executionEvidence, workflowSnapshot }) {
+  async runAudit({ projectId, executionEvidence, workflowSnapshot, settings = {} }) {
     return this.locked(projectId, async () => {
       const p = await this.getProject(projectId);
       if (!p.documents.length) throw new Error('Import documents before running an audit');
+      const appliedSettings=resolveSettings(p,settings),effective=appliedSettings.effective,checks=effective.checks;
+      const selectedSources=p.documents.filter(d=>effective.scope==='all'||d.role==='si');
       const documents = [];
-      for (const source of p.documents) {
+      for (const source of selectedSources) {
         try { const target = await this.sourcePath(p, source.filePath); const document = await parseDocument({ filePath: target, role: source.role }); document.name = source.name; document.sourceKey = source.key; source.sha256 = document.sha256; source.coverage = document.coverage; documents.push(document); }
         catch (error) { documents.push({ id: `failed-${source.key}`, sourceKey: source.key, name: source.name, role: source.role, format: path.extname(source.name), sha256: null, blocks: [], coverage: { status: 'failed', totalUnits: 1, parsedUnits: 0, warnings: [String(error.message)] } }); }
       }
       const visualCoverage = { activeTables: 0, provisionalTables: 0, acceptedTables: 0, rejectedTables: 0, staleTables: [], failedTables: [] };
       const imageTables = [];
       for (const id of Object.values(p.activeImageTables ?? {})) {
-        const table = await json(path.join(this.dir(projectId), 'tables', `${safeID(id)}.json`)); imageTables.push(table); visualCoverage.activeTables++;
+        const table = await json(path.join(this.dir(projectId), 'tables', `${safeID(id)}.json`)); if(effective.scope==='si' && table.source.role!=='si')continue; imageTables.push(table); visualCoverage.activeTables++;
         const source = documents.find(d => d.id === table.source.documentId && d.sha256 === table.source.sourceSha256);
         if (!source) { visualCoverage.staleTables.push(id); continue; }
         if (table.review.status === 'rejected') { visualCoverage.rejectedTables++; continue; }
@@ -385,26 +405,27 @@ export class AuditService {
         documents.push({ id: `visualdoc-${hash(id).slice(0, 20)}`, name: `${table.source.name} [OCR ${id}]`, role: table.source.role, format: 'image_table', sha256: table.source.rasterSha256, originalSourceSha256: table.source.sourceSha256, evidenceOrigin: 'image_table_ocr', blocks: imageTableBlocks(table), coverage: { status: table.review.status === 'accepted' ? 'complete' : 'partial', totalUnits: table.rows.length, parsedUnits: table.rows.length, warnings: [table.review.status === 'accepted' ? 'Human accepted the transcription; this does not validate the scientific result or original measurement.' : 'Unreviewed OCR; image readings can be wrong. Source image hash and cell boxes are retained.'] } });
       }
       if (documents.reduce((n, d) => n + d.blocks.reduce((m, b) => m + b.text.length, 0), 0) > 8 * 1024 * 1024) throw new Error('MVP text budget exceeded (8 Mi characters); split the project');
-      const result = auditDocuments(documents, p.profile);
-      const scientificOptions = validateScientificConfig(p.scientificOptions);
-      const stoichiometry = checkStoichiometry(documents);
-      const hrms = checkHrms(documents, p.hrmsOptions ?? DEFAULT_HRMS);
-      const nmr = checkNmr(documents, hrms.records, scientificOptions);
-      const experimental = checkExperimentalMath(documents, scientificOptions);
-      const prose = checkExperimentalProse(documents, scientificOptions, { hrmsRecords: hrms.records, contexts: p.experimentContexts ?? [] });
-      const cross = checkCrossReferences(documents, result.facts);
+      const result = auditDocuments(documents, effective.profile, {crossDocument:checks.crossDocument});
+      const scientificOptions = effective.scientific;
+      const stoichiometry = checkStoichiometry(checks.stoichiometry?documents:[]);
+      const hrms = checkHrms(checks.hrms||checks.nmr||checks.experiments?documents:[], {...(p.hrmsOptions??DEFAULT_HRMS),...effective.hrms});
+      if(!checks.hrms){hrms.issues=[];hrms.coverage={...hrms.coverage,status:"disabled",dependencyExtraction:checks.nmr||checks.experiments};}
+      const nmr = checkNmr(checks.nmr?documents:[], hrms.records, scientificOptions);
+      const experimental = checkExperimentalMath(checks.experiments?documents:[], scientificOptions);
+      const prose = checkExperimentalProse(checks.experiments?documents:[], scientificOptions, { hrmsRecords: hrms.records, contexts: p.experimentContexts ?? [] });
+      const cross = checkCrossReferences(checks.crossReferences?documents:[], result.facts);
       const activeAssets = (p.visualAssets ?? []).filter(a => !p.activeVisuals || p.activeVisuals[a.originKey] === a.id);
       const currentAssets = activeAssets.filter(a => documents.some(d => d.id === a.documentId && d.sha256 === a.sourceSha256));
-      const imageSignature = hash(JSON.stringify([IMAGE_RULE_VERSION, currentAssets.map(a => [a.id, a.sha256, a.status, a.imageType]), scientificOptions]));
+      const imageSignature = hash(JSON.stringify([IMAGE_RULE_VERSION, currentAssets.map(a => [a.id, a.sha256, a.status, a.imageType]), scientificOptions, checks.pixelDuplicates, effective.scope]));
       const previousProgress = p.duplicateProgress?.signature === imageSignature ? p.duplicateProgress : null;
       const cachedRun = previousProgress?.runId ? await json(path.join(this.dir(projectId), 'runs', `${safeID(previousProgress.runId)}.json`)) : null;
       const cacheDir = path.join(this.dir(projectId), 'image-features-v1');
       const cache = { get: async key => { try { const c = await json(path.join(cacheDir, `${key}.json`)); return c.variants && c.patches ? c : null; } catch { return null; } }, set: async (key, value) => atomic(path.join(cacheDir, `${key}.json`), value) };
       const duplicateOptions = { maxAssets: scientificOptions.maxImageAssets, pairBudget: scientificOptions.imagePairBudget, pairOffset: previousProgress ? previousProgress.nextPairOffset ?? previousProgress.totalEligiblePairs : 0, imageRmse: scientificOptions.imageRmse, localImageRmse: scientificOptions.localImageRmse, localImages: scientificOptions.localImages, imageTypeRules: scientificOptions.imageTypeRules, cache };
-      let duplicates = await checkImageDuplicates(currentAssets, async asset => (await this.getVisualImage({ projectId, assetId: asset.id })).data, duplicateOptions);
+      let duplicates = await checkImageDuplicates(checks.pixelDuplicates?currentAssets:[], async asset => (await this.getVisualImage({ projectId, assetId: asset.id })).data, duplicateOptions);
       // A decoder failure changes the eligible pair order. Never resume at an old offset in a different ordering.
       let canReuse = !!cachedRun && JSON.stringify(previousProgress.skipped) === JSON.stringify(duplicates.coverage.skipped);
-      if (cachedRun && !canReuse) duplicates = await checkImageDuplicates(currentAssets, async asset => (await this.getVisualImage({ projectId, assetId: asset.id })).data, { ...duplicateOptions, pairOffset: 0 });
+      if (cachedRun && !canReuse) duplicates = await checkImageDuplicates(checks.pixelDuplicates?currentAssets:[], async asset => (await this.getVisualImage({ projectId, assetId: asset.id })).data, { ...duplicateOptions, pairOffset: 0 });
       const priorImageIssues = canReuse ? cachedRun.issues.filter(i => i.category === 'image_duplicate') : [];
       duplicates.issues = [...new Map([...priorImageIssues, ...duplicates.issues].map(i => [i.id, i])).values()];
       duplicates.coverage.comparedPairsThisRun = duplicates.coverage.comparedPairs;
@@ -414,26 +435,29 @@ export class AuditService {
         try { const bytes = await annotatedPair(issue.imageEvidence, issue.calculation.boxes, async e => (await this.getVisualImage({ projectId, assetId: e.assetId })).data); const dir = path.join(this.dir(projectId), 'visuals', 'comparisons'); await mkdir(dir, { recursive: true }); issue.previewPath = path.join(dir, `${hash(bytes)}.png`); await writeFile(issue.previewPath, bytes); } catch (error) { issue.previewError = String(error.message); }
       }
       duplicates.coverage.previewsOmitted = duplicates.issues.filter(i => !i.previewPath).length;
-      duplicates.coverage.staleAssets = activeAssets.filter(a => !currentAssets.includes(a)).map(a => a.id);
+      duplicates.coverage.staleAssets = activeAssets.filter(a => (effective.scope!=='si'||a.role==='si') && !currentAssets.includes(a)).map(a => a.id);
       duplicates.coverage.uninventoriedDocuments = documents.filter(d => ['pdf', 'docx', 'png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'webp'].includes(d.format) && !currentAssets.some(a => a.documentId === d.id)).map(d => ({ id: d.id, name: d.name }));
-      const spectrumReadings = await this.getSpectrumReadings({ projectId });
-      const registry = buildCompoundRegistry(documents, { nmrRecords: nmr.records, hrmsRecords: hrms.records, assets: currentAssets, decisions: p.compoundDecisions ?? [], requirements: p.requirements ?? null, spectrumReadings });
-      const spectra = checkSpectrumReadings(spectrumReadings, registry, nmr.records, currentAssets, scientificOptions);
-      const visualReview = await visualReviewSnapshot(this,projectId);
+      const spectrumReadings = (await this.getSpectrumReadings({ projectId })).filter(r=>effective.scope!=='si'||activeAssets.some(a=>a.id===r.assetId && a.role==='si'));
+      const registry = buildCompoundRegistry(documents, { nmrRecords: nmr.records, hrmsRecords: hrms.records, assets: currentAssets, decisions: p.compoundDecisions ?? [], requirements: checks.nmr&&checks.hrms ? p.requirements??null : null, spectrumReadings });
+      const spectra = checkSpectrumReadings(checks.nmr?spectrumReadings:[], registry, nmr.records, currentAssets, scientificOptions);
+      const visualReview = checks.visualReview?await visualReviewSnapshot(this,projectId,{scope:effective.scope}):{coverage:{status:'disabled'},issues:[],records:[]};
       const rank = i => ({ high: 0, medium: 1, low: 2 }[i.severity] ?? 3) * 10 + ({ data: 0, semantic: 1, alignment: 2, coverage: 3, format: 4 }[i.type] ?? 5);
       const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues, ...nmr.issues, ...duplicates.issues, ...registry.issues, ...experimental.issues, ...spectra.issues, ...prose.issues, ...cross.issues, ...visualReview.issues].sort((a, b) => rank(a) - rank(b));
       const execution = { entryPoint: this.executionPath, recordedBy: 'entrypoint-declared; confirm native calls in host logs', ...(this.executionPath === 'harness_native_tools' && executionEvidence ? { toolName: executionEvidence.toolName ?? 'paper_audit_run', toolCallId: typeof executionEvidence.toolCallId === 'string' ? executionEvidence.toolCallId : null } : {}) };
-      const coverage = { ...result.coverage, hrms: hrms.coverage, imageTables: visualCoverage, stoichiometry: stoichiometry.coverage, semanticStatus: 'not_run', missingRoles: ['main', 'si'].filter(role => !documents.some(d => d.role === role)), documents: documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage })) };
+      const coverage = { ...result.coverage, hrms: hrms.coverage, imageTables: visualCoverage, stoichiometry: stoichiometry.coverage, semanticStatus: 'not_run', missingRoles: (effective.scope==='si'?['si']:['main','si']).filter(role => !documents.some(d => d.role === role)), documents: documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage })) };
+      coverage.settingsScope={scope:effective.scope,excludedSources:p.documents.filter(d=>!selectedSources.includes(d)).map(d=>({key:d.key,name:d.name,role:d.role})),disabledChecks:Object.keys(checks).filter(k=>!checks[k])};
+      for(const [enabled,sub] of [[checks.stoichiometry,stoichiometry],[checks.nmr,nmr],[checks.experiments,experimental],[checks.experiments,prose],[checks.crossReferences,cross],[checks.pixelDuplicates,duplicates]])if(!enabled)sub.coverage.status='disabled';
       coverage.visualAgentReview = visualReview.coverage;
       if (visualReview.coverage.currentSourceModelObservedPairs) coverage.completedChecks.push('visual_model_observations_not_scientific_verification');
       if (visualReview.coverage.status !== 'completed' || visualReview.coverage.decisionCounts?.uncertain) coverage.incompleteChecks.push('visual_model_image_review_scope');
       coverage.nmrFormula = nmr.coverage; coverage.imageDuplicates = duplicates.coverage;
       coverage.compounds = registry.coverage;
+      if(!checks.nmr||!checks.hrms)coverage.compounds.checklistStatus='deferred_disabled_extraction_checks';
       coverage.crossReferences = cross.coverage; coverage.experimentalProse = prose.coverage;
       if (prose.coverage.checked) coverage.completedChecks.push('experimental_prose_explicit_input_recalculation');
       if (prose.coverage.conditional) coverage.conditionalChecks = ['experimental_prose_assumption_scenarios'];
       if (prose.coverage.insufficient || prose.coverage.conditional) coverage.incompleteChecks.push('experimental_input_basis_or_linking');
-      coverage.experimentalMath = experimental.coverage; coverage.spectrumComparison = spectra.coverage;
+      coverage.experimentalMath = experimental.coverage; coverage.spectrumComparison = {...spectra.coverage,...(!checks.nmr?{status:'disabled'}:{})};
       if (experimental.coverage.checked) coverage.completedChecks.push('explicit_experimental_numeric_recalculation');
       if (spectra.coverage.readings) coverage.completedChecks.push('spectrum_label_comparison');
       if (experimental.coverage.insufficient || spectra.coverage.stale.length || spectra.coverage.provisionalReadings || spectra.coverage.recordsWithGaps) coverage.incompleteChecks.push('scientific_source_interpretation');
@@ -441,13 +465,13 @@ export class AuditService {
       if (nmr.coverage.insufficientRecords || nmr.coverage.ambiguousRecords) coverage.incompleteChecks.push('nmr_formula_association_or_count');
       if (duplicates.coverage.checkedAssets) coverage.completedChecks.push('prepared_image_duplicate_comparison');
       if (duplicates.coverage.exactOnlyAssetIds.length) coverage.incompleteChecks.push('nonexact_image_content_requires_review');
-      if (duplicates.coverage.uninventoriedDocuments.length || duplicates.coverage.skipped.length || duplicates.coverage.staleAssets.length || duplicates.coverage.truncatedAssets || duplicates.coverage.nextPairOffset !== null) coverage.incompleteChecks.push('image_duplicate_source_coverage');
-      if (hrms.coverage.calculatedRecords + hrms.coverage.ambiguousRecords > 0) { coverage.notPerformed = coverage.notPerformed.filter(s => !s.includes('HRMS 分子式精确质量复算')); coverage.completedChecks.push('hrms_conditional_exact_mass_recalculation'); }
-      if (hrms.coverage.ambiguousRecords) coverage.incompleteChecks.push('hrms_formula_basis_confirmation');
-      if (hrms.coverage.unsupportedRecords) coverage.incompleteChecks.push('hrms_expression_coverage');
-      if (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked')) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
+      if (checks.pixelDuplicates && (duplicates.coverage.uninventoriedDocuments.length || duplicates.coverage.skipped.length || duplicates.coverage.staleAssets.length || duplicates.coverage.truncatedAssets || duplicates.coverage.nextPairOffset !== null)) coverage.incompleteChecks.push('image_duplicate_source_coverage');
+      if (checks.hrms && hrms.coverage.calculatedRecords + hrms.coverage.ambiguousRecords > 0) { coverage.notPerformed = coverage.notPerformed.filter(s => !s.includes('HRMS 分子式精确质量复算')); coverage.completedChecks.push('hrms_conditional_exact_mass_recalculation'); }
+      if (checks.hrms && hrms.coverage.ambiguousRecords) coverage.incompleteChecks.push('hrms_formula_basis_confirmation');
+      if (checks.hrms && hrms.coverage.unsupportedRecords) coverage.incompleteChecks.push('hrms_expression_coverage');
+      if (checks.hrms && (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked'))) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
       if (visualCoverage.activeTables) { coverage.completedChecks.push('selected_image_table_ocr'); if (visualCoverage.provisionalTables || visualCoverage.staleTables.length || visualCoverage.failedTables.length) coverage.incompleteChecks.push('image_table_transcription_review'); }
-      const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(p.profile), profileRevision: p.profileRevision, hrmsOptions: structuredClone(p.hrmsOptions ?? DEFAULT_HRMS), hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
+      const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(effective.profile), appliedSettings, settingsRevision:p.settingsRevision??0, auditSettingsKey:auditSettingsKey(effective), profileRevision: p.profileRevision, hrmsOptions: {...(p.hrmsOptions??DEFAULT_HRMS),...effective.hrms}, hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
       run.visualReview = visualReview; run.visualReviewRevision = p.visualReviewRevision ?? 0;
       run.crossReferences = cross; run.experimentalProseRecords = prose.records; run.experimentalMethods = prose.methods;
       run.reviewGroups = buildReviewGroups(run);
@@ -563,9 +587,10 @@ export class AuditService {
     const issues = [...run.issues, ...semantic];
     if (run.reviewGroups && semantic.length) run.reviewGroups = { ...run.reviewGroups, ungroupedIssueIds: [...new Set([...run.reviewGroups.ungroupedIssueIds, ...semantic.map(i => i.id)])] };
     const physicalDocs = run.documents.filter(d => !['image_table', 'material_ocr'].includes(d.format));
+    run.settingsChangedSinceRun = (p.settingsRevision??0)!==(run.settingsRevision??0);
     run.visualReviewsChangedSinceRun = (p.visualReviewRevision ?? 0) !== (run.visualReviewRevision ?? 0);
     run.scientificSettingsChangedSinceRun = (p.scientificRevision ?? 0) !== (run.scientificRevision ?? 0);
-    return { ...run, execution: run.execution ?? { entryPoint: 'legacy_unknown', recordedBy: 'not recorded in original run' }, issues, issueSummary: summarizeIssues(issues), reviews, coverage: { ...run.coverage, semanticStatus: semantic.length ? 'candidates_submitted_not_exhaustive' : 'not_run' }, profileChangedSinceRun: p.profileRevision !== run.profileRevision, hrmsSettingsChangedSinceRun: (p.hrmsRevision ?? 0) !== (run.hrmsRevision ?? 0), imageTablesChangedSinceRun: (p.visualRevision ?? 0) !== (run.visualRevision ?? 0), sourcesChangedSinceRun: signature(p.documents) !== signature(physicalDocs) };
+    return { ...run, execution: run.execution ?? { entryPoint: 'legacy_unknown', recordedBy: 'not recorded in original run' }, issues, issueSummary: summarizeIssues(issues), reviews, coverage: { ...run.coverage, semanticStatus: semantic.length ? 'candidates_submitted_not_exhaustive' : 'not_run' }, profileChangedSinceRun: p.profileRevision !== run.profileRevision, hrmsSettingsChangedSinceRun: (p.hrmsRevision ?? 0) !== (run.hrmsRevision ?? 0), imageTablesChangedSinceRun: (p.visualRevision ?? 0) !== (run.visualRevision ?? 0), sourcesChangedSinceRun: signature(p.documents.filter(d=>run.appliedSettings?.effective.scope!=='si'||d.role==='si')) !== signature(physicalDocs) };
   }
   evidenceFrom(run, evidenceId) {
     const fact = run.facts.find(f => f.id === evidenceId);
@@ -613,8 +638,10 @@ export class AuditService {
       return { accepted: added.length, issues: added, semanticCoverage: 'not_exhaustive' };
     });
   }
-  async exportReport({ projectId, runId, format = 'md' }) {
+  async exportReport({ projectId, runId, format, includeImages, includeEvidence }) {
     const run = await this.getRun({ projectId, runId });
+    const presentation={...builtInSettings().report,...run.appliedSettings?.effective.report,...(includeImages!==undefined?{includeImages}:{}),...(includeEvidence!==undefined?{includeEvidence}:{})};
+    format??=presentation.format;presentation.format=format;validateSettings({report:presentation});run.exportPresentation=presentation;
     if (!['md', 'json', 'csv'].includes(format)) throw new Error('Unknown report format');
     let content;
     if (format === 'json') content = JSON.stringify(run, null, 2);
@@ -629,6 +656,8 @@ export class AuditService {
     const file = path.join(this.dir(projectId), 'exports', `${run.id}-${randomUUID().slice(0, 8)}.${format}`);
     await mkdir(path.dirname(file), { recursive: true });
     await writeFile(file, content, { encoding: 'utf8', flag: 'wx' });
-    return { path: file, content, format };
+    let settingsPath;
+    if(format==='csv'){settingsPath=file+'.settings.json';await writeFile(settingsPath,JSON.stringify({runId:run.id,appliedSettings:run.appliedSettings??null,exportPresentation:presentation,settingsScope:run.coverage.settingsScope??null},null,2),{encoding:'utf8',flag:'wx'});}
+    return { path: file, content, format, settingsPath };
   }
 }

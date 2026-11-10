@@ -1,6 +1,6 @@
-# DeepSeek Harness 原生接入（0.8.0 开发版）
+# DeepSeek Harness 原生接入（0.9.0 开发版）
 
-目标宿主：**DeepSeek Harness 0.2.2-rc.1**。插件开发版本：**0.8.0**。两者分开管理。
+目标宿主：**DeepSeek Harness 0.2.2-rc.1**。插件开发版本：**0.9.0**。两者分开管理。
 
 本版只有 Harness 原生工具及可选命令行，**没有网页复核面板、本地 HTTP 服务或浏览器入口**。旧运行与旧安装包属于历史产物，不会因移除面板而删除。
 
@@ -10,7 +10,7 @@
 - `@deepseek-ai/dsh-tools`、`@deepseek-ai/dsh-system-prompt`：`0.2.2-rc.1`。
 - `@deepseek-ai/cordis`：`4.1.0`；`@deepseek-ai/schemastery`：`3.19.0`。
 - 工具经 `defineTool` / `ctx.tools.register` 注册，配置使用 Schemastery，流程指令通过 `ctx.systemPrompt.section` 注入。
-- 原生工具 **45 个**，实际清单由 `createToolDefinitions()` 与集成测试校验。
+- 原生工具 **47 个**，实际清单由 `createToolDefinitions()` 与集成测试校验。
 
 图像输出使用该版本的真实 `ContentBlock`：`{ type: 'image', attachment: ImageAttachmentRef }`。不能直接把 base64 或路径字符串冒充模型看到了图像。插件在可选 `ctx.attachments` 中保存已登记图像，由当前调用路由的 `llm.resolveModelInfo` 确认其声明支持 image 后再送出 durable image block。文本模型、无附件服务或不受支持的媒体类型会得到明确的 `imageDelivered: false`，本地 OCR 仍可单独使用。
 
@@ -51,12 +51,14 @@ dsh plugin --profile paper-audit add ./dsh-paper-si-audit-0.2.0.tgz
 
 这管理的是 `paper-audit`，不会自动启用正在运行的 `desktop` profile。普通 npm CLI 对保留 desktop profile 的限制，与桌面内置 CLI 的管理入口不同；不要将独立 profile 安装视为桌面启用证明。详见 [激活诊断](ACTIVATION.md)。
 
-根据宿主反馈重开会话或重启后，确认当前会话可发现下面全部 22 个工具，再进行原生流程验收。
+根据宿主反馈重开会话或重启后，确认当前会话可发现全部 47 个工具（下表为基础工具，后续模块见对应章节），再进行原生流程验收。
 
 ## 原生工具
 
 | 工具 | 用途 |
 |---|---|
+| `paper_audit_settings` | 查询有效设置、任务预览与当前模型图片能力 |
+| `paper_audit_configure_settings` | 保存项目偏好或恢复捕获的默认值 |
 | `paper_audit_create` | 在授权源目录内创建项目 |
 | `paper_audit_projects` | 列出项目 |
 | `paper_audit_project` | 读取项目元数据、文档 key 和当前规则 |
@@ -118,7 +120,7 @@ CLI 不启动网页，`serve` 已移除，会明确拒绝而不创建服务器�
 
 ## 验证边界与历史
 
-插件测试使用精确官方 Cordis/Tools/SystemPrompt 包，验证 32 个工具真实注册/卸载、证据分页、图像输入能力 gate、OCR/复核参数以及 HRMS 计算工具。目标发行版测试通过真实工具执行流水线创建项目、导入合成材料、核对、读取证据、计算质量并导出报告；不依赖网页或额外模型 API。
+插件测试使用精确官方 Cordis/Tools/SystemPrompt 包，验证 47 个工具真实注册/卸载、证据分页、图像输入能力 gate、OCR/复核参数以及 HRMS 计算工具。目标发行版测试通过真实工具执行流水线创建项目、导入合成材料、核对、读取证据、计算质量并导出报告；不依赖网页或额外模型 API。
 
 工具测试中的图片路由使用受控附件与能力夹具，不能据此声称已测试用户的真实视觉模型。实际模型调用、OCR 对具体复杂表格的读取准确率以及用户桌面启用，需分别记录。结果以项目 [验证记录](VALIDATION.md) 为准。
 
@@ -137,3 +139,6 @@ CLI 不启动网页，`serve` 已移除，会明确拒绝而不创建服务器�
 0.7.0 新增 paper_audit_set_image_type 和 paper_audit_review_groups。见 [分类与分组说明](REVIEW-0.7.md)。
 
 0.8.0 新增 visual_review、visual_pair、submit_visual、visual_comparison 四个 paper_audit_ 原生工具，使用当前 Agent 的视觉模型路由。见 [视觉 Agent 工作流](VISUAL-AGENT-0.8.md)。
+
+
+0.9.0 增加原生分组配置、`paper_audit_settings` 和 `paper_audit_configure_settings`。项目与任务设置、快照和兼容说明见 [SETTINGS.md](SETTINGS.md)。

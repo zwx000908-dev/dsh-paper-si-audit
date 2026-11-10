@@ -9,6 +9,14 @@ Use the native `paper_audit_*` tools for user-requested manuscript/SI data check
 The plugin system-prompt contribution supplies the core workflow even if the
 host has not separately indexed this skill file.
 
+Read `paper_audit_settings` for captured defaults and active model image capability.
+Use `paper_audit_configure_settings` only for user-requested project preferences;
+`settingsJson` on run/workflow/visual-review is task-only. Workflow/visual settings
+are start-only and frozen on resume. A reset restores captured project defaults,
+not the latest global defaults. Check disabled modules, scope exclusions and
+budgets before interpreting results. Global defaults never supply scientific
+assumptions, formula basis or credentials. See docs/SETTINGS.md.
+
 1. Create a project with the user-selected source directories. Import the current
    main manuscript, SI and optional source tables using their actual roles.
 2. Ask which custom or verified journal profile to apply only if needed; otherwise

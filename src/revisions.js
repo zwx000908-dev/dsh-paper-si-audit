@@ -23,7 +23,7 @@ export function buildRevisionLedger(run, previous) {
   const current = run.issues.map(issue => ({ issue, ...describe(run, issue) }));
   const oldRows = previous?.revisionLedger?.items ?? previous?.issues.map(issue => ({ id: 'track_' + digest([previous.id, issue.id]), originRunId: previous.id, originIssueId: issue.id, currentIssueId: issue.id, title: issue.title, ...describe(previous, issue), state: 'open', firstSeen: previous.id, lastSeen: previous.id })) ?? [];
   const items = [], used = new Set();
-  const settingsChanged = previous && (previous.profileRevision !== run.profileRevision || previous.hrmsRevision !== run.hrmsRevision || previous.scientificRevision !== run.scientificRevision);
+  const settingsChanged = previous && (previous.profileRevision !== run.profileRevision || previous.hrmsRevision !== run.hrmsRevision || previous.scientificRevision !== run.scientificRevision || previous.auditSettingsKey !== run.auditSettingsKey);
   for (const prior of oldRows) {
     let matches = current.filter(c => c.issue.id === prior.currentIssueId);
     if (!matches.length) matches = current.filter(c => c.anchor === prior.anchor);

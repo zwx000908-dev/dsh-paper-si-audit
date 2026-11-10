@@ -26,6 +26,12 @@ export async function apply(ctx, config) {
     return result.value;
   };
   const project = await invoke('paper_audit_create', { name: 'Synthetic native release smoke' });
+  const initialSettings = await invoke('paper_audit_settings', {projectId:project.id});
+  if(initialSettings.effective.scope!=='all')throw new Error('Native settings defaults missing');
+  await invoke('paper_audit_configure_settings', {projectId:project.id,settingsJson:JSON.stringify({report:{includeImages:false}})});
+  const previewSettings = await invoke('paper_audit_settings', {projectId:project.id,settingsJson:JSON.stringify({scope:'si'})});
+  if(previewSettings.effective.scope!=='si'||previewSettings.projectEffective.scope!=='all'||previewSettings.effective.report.includeImages!==false)throw new Error('Native settings precedence failed');
+  await invoke('paper_audit_configure_settings', {projectId:project.id,reset:true});
   const mass = await invoke('paper_audit_hrms_calculate', { formula: 'C2H6O', ion: '[M+H]+', formulaBasis: 'neutral' });
   if (!Array.isArray(mass.candidates) || !mass.candidates.length) throw new Error('Native HRMS calculation did not return an explicit candidate');
   await invoke('paper_audit_add_document', { projectId: project.id, filePath: path.join(config.sourceDir, 'main.txt'), role: 'main' });

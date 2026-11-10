@@ -1,3 +1,4 @@
+import { resolveSettings, mergeSettings } from './settings.js';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -16,7 +17,7 @@ async function state(s,projectId) {
   const p=await s.getProject(projectId),sources=[];
   for(const d of p.documents) { try { sources.push([d.key,d.role,hash(await readFile(await s.sourcePath(p,d.filePath)))]); } catch(e) { sources.push([d.key,d.role,'unreadable:'+e.code]); } }
   const active=(p.visualAssets??[]).filter(a=>!p.activeVisuals||p.activeVisuals[a.originKey]===a.id);
-  const signature=digest(['vision-review-v1',sources,active.map(a=>[a.id,a.sha256,a.status,a.imageType])]);
+  const signature=digest(['vision-review-v1',p.settingsRevision??0,p.scientificRevision??0,sources,active.map(a=>[a.id,a.sha256,a.status,a.imageType])]);
   return {p,sources,active,signature};
 }
 async function load(s,projectId,jobId) { const dir=directory(s,projectId);jobId??=(await read(path.join(dir,'active.json'))).jobId;return read(path.join(dir,id(jobId)+'.json')); }
@@ -35,7 +36,7 @@ function summary(job) {
   const counts=job.tasks.reduce((o,t)=>(o[t.status]=(o[t.status]??0)+1,o),{}),pending=(counts.pending??0)+(counts.delivered??0),failed=counts.failed??0;
   const status=['cancelled','stale'].includes(job.status)?job.status:pending?'running':failed?'blocked':job.coverage.remainingPairs||job.coverage.excludedAssets.length||job.coverage.typeExcluded||job.coverage.pairScopeExcluded||job.coverage.sourceDocumentsWithoutAssets.length||!job.assets.length?'completed_with_gaps':'completed';
   const next=job.tasks.find(t=>['pending','delivered'].includes(t.status));
-  return {jobId:job.id,status,counts,coverage:job.coverage,options:job.options,createdAt:job.createdAt,nextTaskId:!['cancelled','stale'].includes(status)?next?.id??null:null,nextAction:['cancelled','stale'].includes(status)?null:next?'paper_audit_visual_pair':failed?'retry_failed':job.coverage.remainingPairs?'extend':null,
+  return {jobId:job.id,status,counts,coverage:job.coverage,options:job.options,appliedSettings:job.appliedSettings,createdAt:job.createdAt,nextTaskId:!['cancelled','stale'].includes(status)?next?.id??null:null,nextAction:['cancelled','stale'].includes(status)?null:next?'paper_audit_visual_pair':failed?'retry_failed':job.coverage.remainingPairs?'extend':null,
     note:'Completed means scheduled model observations recorded, not scientific verification. No correspondence is not proof of uniqueness. Missing/failed/pair-budget-excluded material remains unchecked.'};
 }
 async function current(s,projectId,jobId,allowTerminal=false) {
@@ -49,20 +50,27 @@ function appendTasks(job,limit) {
   for(const ids of p.eligible.slice(start,start+limit))job.tasks.push({id:'pair-'+digest(ids).slice(0,24),assetIds:ids,status:'pending',deliveries:[],failures:[],results:[]});
   job.coverage={...job.coverage,totalEligiblePairs:p.eligible.length,scheduledPairs:job.tasks.length,remainingPairs:Math.max(0,p.eligible.length-job.tasks.length),parentExcluded:p.parentExcluded,typeExcluded:p.typeExcluded,pairScopeExcluded:p.pairScopeExcluded};
 }
-export async function visualReviewAction(s,{projectId,jobId,action='status',options={},taskId,reason,offset=0,limit=30}) {
+export async function visualReviewAction(s,{projectId,jobId,action='status',options={},settings={},taskId,reason,offset=0,limit=30}) {
   if(!['start','status','tasks','retry_failed','cancel','extend','reopen'].includes(action))throw new Error('Unknown visual review action');
+  if(action!=='start' && (Object.keys(settings).length || Object.keys(options).length))throw new Error('Settings and options are start-only');
   if(!Number.isInteger(offset)||offset<0||!Number.isInteger(limit)||limit<1||limit>100)throw new Error('Invalid pagination');
   return s.locked(projectId,async()=>{
     let job;
     if(action==='start'){
       if(!options||typeof options!=='object'||Array.isArray(options)||Object.keys(options).some(k=>!['assetIds','pairs','mode','includeSelf','maxAssets','maxPairs'].includes(k)))throw new Error('Unknown visual review option');
-      const opts={mode:'all',includeSelf:true,maxAssets:200,maxPairs:2000,...options};
+      const visualPatch=Object.fromEntries(Object.entries(options).filter(([k])=>['mode','includeSelf','maxAssets','maxPairs'].includes(k)));
+      const appliedSettings=resolveSettings(await s.getProject(projectId),mergeSettings(settings,{visual:visualPatch}));
+      if(!appliedSettings.effective.checks.visualReview)throw new Error('Visual review is disabled in effective settings');
+      const scope=appliedSettings.effective.scope;
+      const opts={...appliedSettings.effective.visual,...options};
       if(!['all','same_type'].includes(opts.mode)||typeof opts.includeSelf!=='boolean'||!Number.isInteger(opts.maxAssets)||opts.maxAssets<1||opts.maxAssets>500||!Number.isInteger(opts.maxPairs)||opts.maxPairs<1||opts.maxPairs>10000)throw new Error('Invalid visual review bounds');
       if(opts.assetIds&&(!Array.isArray(opts.assetIds)||!opts.assetIds.length||opts.assetIds.length>500||new Set(opts.assetIds).size!==opts.assetIds.length))throw new Error('Invalid asset selection');
       const now=await state(s,projectId);
-      try { const active=await load(s,projectId);if(active.signature===now.signature&&digest(active.options)===digest(opts)&&['running','blocked'].includes(summary(active).status))return {...summary(active),resumedExisting:true}; } catch(e) { if(e.code!=='ENOENT')throw e; }
+      try { const active=await load(s,projectId);if(active.signature===now.signature&&digest(active.options)===digest(opts)&&(active.appliedSettings?.effective.scope??'all')===scope&&['running','blocked'].includes(summary(active).status))return {...summary(active),resumedExisting:true}; } catch(e) { if(e.code!=='ENOENT')throw e; }
       if(opts.assetIds?.some(a=>!now.active.some(v=>v.id===a)))throw new Error('Selected image is not active');
-      const selected=now.active.filter(a=>!opts.assetIds||opts.assetIds.includes(a.id));
+      const inScope=a=>scope!=='si'||now.p.documents.find(d=>d.key===a.documentKey)?.role==='si';
+      if(opts.assetIds?.some(id=>!inScope(now.active.find(a=>a.id===id))))throw new Error('Selected image outside settings scope');
+      const selected=now.active.filter(a=>inScope(a)&&(!opts.assetIds||opts.assetIds.includes(a.id)));
       const ready=selected.filter(a=>a.status==='ready'&&now.sources.some(d=>d[0]===a.documentKey&&d[2]===a.sourceSha256));
       let run=null;if(now.p.runIds.length)run=await s.getRun({projectId});
       const assets=ready.slice(0,opts.maxAssets).map(a=>{
@@ -70,7 +78,7 @@ export async function visualReviewAction(s,{projectId,jobId,action='status',opti
         const contexts=(doc?.blocks??[]).filter(b=>a.locator?.page?b.locator?.page===a.locator.page:(a.locations??[]).some(l=>l.paragraph===b.locator?.paragraph)).slice(0,3).map(b=>({blockId:b.id,start:0,end:Math.min(1200,b.text.length),quote:b.text.slice(0,1200),locator:b.locator}));
         return {...a,contexts};
       });
-      job={id:randomUUID(),version:1,createdAt:new Date().toISOString(),signature:now.signature,options:opts,status:'running',assets,tasks:[],coverage:{inventoriedAssets:now.active.length,selectedAssets:selected.length,readyAssets:assets.length,excludedAssets:now.active.filter(a=>!assets.some(v=>v.id===a.id)).map(a=>({assetId:a.id,reason:!selected.includes(a)?'outside_explicit_selection':!ready.includes(a)?'unready_or_stale_source':'asset_budget'})),sourceDocumentsWithoutAssets:now.p.documents.filter(d=>/\.(pdf|docx|png|jpe?g|tiff?|webp|bmp)$/i.test(d.name)&&!now.active.some(a=>a.documentKey===d.key)).map(d=>d.key)}};
+      job={id:randomUUID(),version:1,createdAt:new Date().toISOString(),signature:now.signature,appliedSettings,options:opts,status:'running',assets,tasks:[],coverage:{inventoriedAssets:now.active.length,selectedAssets:selected.length,readyAssets:assets.length,excludedAssets:now.active.filter(a=>!assets.some(v=>v.id===a.id)).map(a=>({assetId:a.id,reason:!inScope(a)?'outside_settings_scope':!selected.includes(a)?'outside_explicit_selection':!ready.includes(a)?'unready_or_stale_source':'asset_budget'})),sourceDocumentsWithoutAssets:now.p.documents.filter(d=>(scope!=='si'||d.role==='si')&&/\.(pdf|docx|png|jpe?g|tiff?|webp|bmp)$/i.test(d.name)&&!now.active.some(a=>a.documentKey===d.key)).map(d=>d.key)}};
       if(opts.pairs){
         if(!Array.isArray(opts.pairs)||!opts.pairs.length||opts.pairs.length>10000||opts.pairs.some(pair=>!Array.isArray(pair)||pair.length!==2||pair.some(a=>!assets.some(v=>v.id===a))||(!opts.includeSelf&&pair[0]===pair[1])))throw new Error('Explicit pairs must use two ready selected assets within budget');
         if(new Set(opts.pairs.map(p=>JSON.stringify([...p].sort()))).size!==opts.pairs.length)throw new Error('Duplicate explicit pair');
@@ -171,8 +179,9 @@ export async function submitVisualResult(s,{projectId,jobId,taskId,receiptId,res
     return {...record,next:summary(job)};
   });
 }
-export async function visualReviewSnapshot(s,projectId) {
+export async function visualReviewSnapshot(s,projectId,{scope='all'}={}) {
   let job;try { job=await load(s,projectId); }catch(e){if(e.code==='ENOENT')return {coverage:{status:'not_performed',note:'No visual-agent comparison job started.'},issues:[],records:[]};throw e;}
+  if((job.appliedSettings?.effective.scope??'all')!==scope)return {coverage:{status:'outside_run_scope',jobId:job.id,scope:job.appliedSettings?.effective.scope??'all'},issues:[],records:[]};
   const now=await state(s,projectId);if(now.signature!==job.signature)job.status='stale';
   const info=summary(job),records=job.tasks.filter(t=>t.results.length).map(t=>({taskId:t.id,assetIds:t.assetIds,state:t.status,deliveries:t.deliveries,history:t.results.slice(0,-1),record:t.results.at(-1)}));
   const issues=[];

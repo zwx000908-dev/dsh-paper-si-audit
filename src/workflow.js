@@ -1,3 +1,4 @@
+import { resolveSettings, mergeSettings } from './settings.js';
 import { VERSION } from './version.js';
 import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
@@ -8,11 +9,15 @@ async function save(file, value) { await mkdir(path.dirname(file), { recursive: 
 async function signature(service, projectId) {
   const p = await service.getProject(projectId), sources = [];
   for (const d of p.documents) { try { const file = await service.sourcePath(p, d.filePath); sources.push([d.key, d.role, hash(await readFile(file))]); } catch (e) { sources.push([d.key, d.role, 'unreadable:' + e.code]); } }
-  return hash(JSON.stringify([VERSION, sources, p.profileRevision, p.hrmsRevision, p.scientificRevision ?? 0]));
+  return hash(JSON.stringify([VERSION, sources, p.profileRevision, p.hrmsRevision, p.scientificRevision ?? 0, p.settingsRevision ?? 0]));
 }
-export async function workflowAction(service, { projectId, action = 'status', jobId, maxSteps = 3, ocr = true, signal, executionEvidence }) {
+export async function workflowAction(service, { projectId, action = 'status', jobId, maxSteps, ocr, settings = {}, signal, executionEvidence }) {
   if (!['start', 'resume', 'status', 'cancel', 'retry_failed'].includes(action)) throw new Error('Unknown workflow action');
-  if (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 25 || typeof ocr !== 'boolean') throw new Error('maxSteps 1–25 and boolean ocr required');
+  const project = await service.getProject(projectId);
+  if(action!=='start' && (Object.keys(settings).length || ocr!==undefined))throw new Error('Settings and OCR overrides are start-only; resume uses captured settings');
+  const taskSettings = ocr===undefined ? settings : mergeSettings(settings,{workflow:{ocr}});
+  const appliedSettings = resolveSettings(project,taskSettings);
+  if (maxSteps!==undefined && (!Number.isInteger(maxSteps) || maxSteps < 1 || maxSteps > 25)) throw new Error('maxSteps 1–25 and boolean ocr required');
   const dir = path.join(service.dir(projectId), 'workflow'), activeFile = path.join(dir, 'active.json');
   await service.getProject(projectId);
   async function load() { const selected = jobId ?? JSON.parse(await readFile(activeFile, 'utf8')).jobId; if (!/^[a-f0-9-]{36}$/.test(selected)) throw new Error('Invalid workflow job ID'); return { file: path.join(dir, selected + '.json'), job: JSON.parse(await readFile(path.join(dir, selected + '.json'), 'utf8')) }; }
@@ -21,11 +26,12 @@ export async function workflowAction(service, { projectId, action = 'status', jo
   return service.locked(projectId, async () => {
     let file, job;
     if (action === 'start') {
-      try { const active = await load(); if (!['completed', 'completed_with_gaps', 'cancelled', 'stale'].includes(active.job.status) && active.job.signature === await signature(service, projectId)) return summary(active.job); } catch (e) { if (e.code !== 'ENOENT') throw e; }
+      try { const active = await load(); if (!['completed', 'completed_with_gaps', 'cancelled', 'stale'].includes(active.job.status) && active.job.signature === await signature(service, projectId) && JSON.stringify(active.job.taskSettings??{})===JSON.stringify(taskSettings)) return summary(active.job); } catch (e) { if (e.code !== 'ENOENT') throw e; }
       const p = await service.getProject(projectId); if (!p.documents.length) throw new Error('Import sources first');
-      job = { id: randomUUID(), projectId, signature: await signature(service, projectId), createdAt: new Date().toISOString(), status: 'pending', stage: 'inventory', ocr, documents: p.documents.map(d => ({ key: d.key, name: d.name, visual: visual.test(d.name), status: visual.test(d.name) ? 'pending' : 'text_only' })), tasks: [], runIds: [], failures: [], attempts: 0 };
+      job = { id: randomUUID(), projectId, signature: await signature(service, projectId), createdAt: new Date().toISOString(), status: 'pending', stage: 'inventory', taskSettings, appliedSettings, ocr: appliedSettings.effective.workflow.ocr, excludedDocuments:p.documents.filter(d=>appliedSettings.effective.scope==='si'&&d.role!=='si').map(d=>d.key), documents: p.documents.filter(d=>appliedSettings.effective.scope!=='si'||d.role==='si').map(d => ({ key: d.key, name: d.name, visual: visual.test(d.name), status: visual.test(d.name) ? 'pending' : 'text_only' })), tasks: [], runIds: [], failures: [], attempts: 0 };
       file = path.join(dir, job.id + '.json'); await save(file, job); await save(activeFile, { jobId: job.id });
     } else ({ file, job } = await load());
+    maxSteps ??= job.appliedSettings?.effective.workflow.maxSteps ?? 3;
     if (action === 'cancel') { job.status = 'cancelled'; await save(file, job); return summary(job); }
     if (job.signature !== await signature(service, projectId)) { job.status = 'stale'; await save(file, job); return summary(job); }
     if (action === 'retry_failed') {
@@ -62,7 +68,7 @@ export async function workflowAction(service, { projectId, action = 'status', jo
           } catch (e) { if (signal?.aborted) throw e; t.status = 'failed'; t.error = e.message; job.failures.push({ documentKey: t.documentKey, offset: t.offset, message: e.message }); }
         } else {
           job.inFlight = { kind: 'audit' }; await save(file, job);
-          const run = await service.runAudit({ projectId, executionEvidence, workflowSnapshot: { jobId: job.id, signature: job.signature, ocr: job.ocr, documents: job.documents, tasks: job.tasks, failures: job.failures } }); job.runIds.push(run.id); job.latestRunId = run.id; job.coverage = run.coverage;
+          const run = await service.runAudit({ projectId, settings: job.taskSettings ?? {}, executionEvidence, workflowSnapshot: { jobId: job.id, signature: job.signature, ocr: job.ocr, documents: job.documents, tasks: job.tasks, failures: job.failures } }); job.runIds.push(run.id); job.latestRunId = run.id; job.coverage = run.coverage;
           if (run.coverage.imageDuplicates.nextPairOffset === null) { job.stage = 'finished'; job.status = job.failures.length || run.coverage.imageDuplicates.skipped.length || run.coverage.imageDuplicates.truncatedAssets || run.coverage.missingRoles.length || run.documents.some(d => d.coverage.status === 'failed') ? 'completed_with_gaps' : 'completed'; }
         }
         job.inFlight = null; job.updatedAt = new Date().toISOString(); await save(file, job);
