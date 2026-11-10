@@ -15,7 +15,10 @@ export function renderMarkdown(run, evidenceFrom) {
   if (run.visualReview) {
     const v=run.visualReview.coverage;
     lines.push('## 视觉 Agent 图片复核', '', `任务状态：${line(v.status)}；模型已记录观察 ${v.modelObservedPairs??0} 对；排队范围内未检查 ${v.uninspectedPairs??0} 对；科学验证通过数不由模型判定。`, '', '原图附件准备记录不证明模型真的理解图片；区域坐标通过校验也不证明内容重复。未发现对应不是无重复证明。范围外材料与源变化见覆盖详情。', '', '| 图片对任务 | 模型观察 | 模型路由 | 区域数 | 依据 |', '|---|---|---|---|---|');
-    for(const r of run.visualReview.records??[]) lines.push(`| ${r.taskId} | ${r.state}: ${r.record.observation.decision} | ${line(r.record.actor.provider)}/${line(r.record.actor.model)} | ${r.record.observation.regions.length} | ${line(r.record.observation.reason)} |`);
+    for(const r of run.visualReview.records??[]) lines.push(`| ${r.jobId??v.jobId} / ${r.taskId} | ${r.state}: ${r.record.observation.decision} | ${line(r.record.actor.provider)}/${line(r.record.actor.model)} | ${r.record.observation.regions.length} | ${line(r.record.observation.reason)} |`);
+    if(v.jobs)lines.push('',`汇总 ${v.jobs.filter(j=>j.included).length} 个有效任务；${v.conflictingPairs?.length??0} 对图片存在不同判断，需复核。未完成或被排除的范围仍按各任务记录。`);
+    for(const j of v.jobs??[])lines.push(`- 任务 ${j.jobId}：${j.status}${j.included?'':'（未计入当前观察）'}`);
+    if(run.visualReview.historicalRecords?.length)lines.push('',`另有 ${run.visualReview.historicalRecords.length} 条失效或取消任务的历史观察，保留在 JSON historicalRecords 中，不计入当前核验结果。`);
     lines.push('');
   }
   if (run.coverage.unmatchedRuleIds?.length) lines.push(`**未命中任何事实的规则：${run.coverage.unmatchedRuleIds.map(line).join(', ')}。这些规则未完成实际字段检查，不能视为通过。**`, '');

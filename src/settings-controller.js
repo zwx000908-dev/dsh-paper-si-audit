@@ -10,7 +10,9 @@ export class PaperSettingsController extends TypertRemoteService {
    const parsed=validateRuntimeConfig(section);
    await validateRuntimePaths(parsed);
    await this.ctx.settings.mutate('paper-si-audit',Object.entries(parsed).map(([key,value])=>({op:'set',path:[key],value})),expectedRevision);
-   return {saved:true};
+   const view=this.ctx.settings.describe({redactSecrets:true}).find(v=>v.ns==='paper-si-audit');
+   if(!view)throw new Error('配置已写入，但无法读取保存结果，请重新加载设置');
+   return {saved:true,view:{ns:view.ns,autoGenerate:view.autoGenerate,schema:view.schema,value:view.value,base:view.base,user:view.user,applies:view.applies,secrets:view.secrets??[],revision:view.revision}};
   }catch(e){throw new RemoteError('paper-settings/rejected',e.message,{});}
  }
 }

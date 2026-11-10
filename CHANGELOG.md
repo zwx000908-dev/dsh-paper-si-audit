@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.2 — Retained visual batches and confirmed settings saves
+
+- Aggregate matching, current visual review jobs across batches and restarts; disclose missing, stale, cancelled and out-of-scope jobs. Count distinct image pairs and retain conflicting observations for review.
+- Return the saved native settings view, refresh the shared configuration mirror and retain the acknowledged revision while older refreshes arrive.
+- Cover report exports, overlapping batches, corrections, delayed settings refresh and consecutive saves with regression tests. See docs/REVIEW-0.10.2.md for the inspection scope and remaining validation gaps.
+
 ## 0.10.1 — Directory editing and recoverable settings
 
 - Preserve newlines and spaces while editing allowed directories; normalize lines only on save. Keep rejected edits available for correction.

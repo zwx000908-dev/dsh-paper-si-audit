@@ -179,11 +179,10 @@ export async function submitVisualResult(s,{projectId,jobId,taskId,receiptId,res
     return {...record,next:summary(job)};
   });
 }
-export async function visualReviewSnapshot(s,projectId,{scope='all'}={}) {
-  let job;try { job=await load(s,projectId); }catch(e){if(e.code==='ENOENT')return {coverage:{status:'not_performed',note:'No visual-agent comparison job started.'},issues:[],records:[]};throw e;}
+function jobSnapshot(job,now,scope) {
   if((job.appliedSettings?.effective.scope??'all')!==scope)return {coverage:{status:'outside_run_scope',jobId:job.id,scope:job.appliedSettings?.effective.scope??'all'},issues:[],records:[]};
-  const now=await state(s,projectId);if(now.signature!==job.signature)job.status='stale';
-  const info=summary(job),records=job.tasks.filter(t=>t.results.length).map(t=>({taskId:t.id,assetIds:t.assetIds,state:t.status,deliveries:t.deliveries,history:t.results.slice(0,-1),record:t.results.at(-1)}));
+  if(now.signature!==job.signature)job.status='stale';
+  const info=summary(job),records=job.tasks.filter(t=>t.results.length).map(t=>({jobId:job.id,taskId:t.id,assetIds:t.assetIds,state:t.status,deliveries:t.deliveries,history:t.results.slice(0,-1),record:t.results.at(-1)}));
   const issues=[];
   if(!['stale','cancelled'].includes(info.status))for(const r of records){
     const result=r.record.observation;if(r.state!=='submitted'||result.decision==='no_correspondence')continue;
@@ -191,6 +190,48 @@ export async function visualReviewSnapshot(s,projectId,{scope='all'}={}) {
     issues.push({id:'vision_'+digest([job.id,r.taskId]).slice(0,24),type:result.decision==='uncertain'?'coverage':'data',category:'visual_duplicate',severity:result.decision==='suspected_duplicate'?'medium':'low',status:'open',evidenceStatus:'needs_review',title:result.decision==='suspected_duplicate'?'视觉模型提出图片重复疑点':result.decision==='possible_legitimate_reuse'?'图片可能合理复用，需核对用途':'视觉图片比较无法确定',description:result.reason,evidenceIds:[],imageEvidence,calculation:{jobId:job.id,...r.record},previewPath:r.record.previews[0]?.path});
   }
   return {coverage:{...info,modelObservedPairs:records.filter(r=>r.state==='submitted').length,currentSourceModelObservedPairs:['stale','cancelled'].includes(info.status)?0:records.filter(r=>r.state==='submitted').length,decisionCounts:records.filter(r=>r.state==='submitted').reduce((o,r)=>(o[r.record.observation.decision]=(o[r.record.observation.decision]??0)+1,o),{}),uninspectedPairs:job.tasks.filter(t=>t.status!=='submitted').length+job.coverage.remainingPairs,scientificallyVerifiedPairs:0},issues,records};
+}
+
+/** Aggregate every retained job, without treating a new batch as a retraction. */
+export async function visualReviewSnapshot(s,projectId,{scope='all'}={}) {
+  const now=await state(s,projectId),ids=new Set(now.p.visualReviewJobIds??[]);
+  let activeId;try{activeId=(await read(path.join(directory(s,projectId),'active.json'))).jobId;ids.add(activeId);}catch(e){if(e.code!=='ENOENT')throw e;}
+  if(!ids.size)return {coverage:{status:'not_performed',note:'No visual-agent comparison job started.'},issues:[],records:[],historicalRecords:[]};
+  const jobs=[],records=[],historicalRecords=[],issues=[],eligible=new Set(),observed=new Map();
+  let pendingReviewTasks=0;
+  const pairKey=assets=>JSON.stringify([...assets].sort());
+  for(const jobId of ids){
+    let job;try{job=await load(s,projectId,jobId);}catch(e){if(e.code!=='ENOENT')throw e;jobs.push({jobId,status:'missing',note:'Retained job file is missing; its observations cannot be recovered from this file.'});continue;}
+    const snap=jobSnapshot(job,now,scope),valid=!['stale','cancelled','outside_run_scope'].includes(snap.coverage.status);
+    jobs.push({...snap.coverage,included:valid});
+    if(!valid){historicalRecords.push(...snap.records.map(r=>({...r,excludedReason:snap.coverage.status})));continue;}
+    records.push(...snap.records);issues.push(...snap.issues);
+    for(const pair of pairs(job.assets,job.options).eligible)eligible.add(pairKey(pair));
+    pendingReviewTasks+=job.tasks.filter(t=>t.status!=='submitted').length;
+    for(const r of snap.records.filter(r=>r.state==='submitted')){
+      const key=pairKey(r.assetIds);if(!observed.has(key))observed.set(key,[]);observed.get(key).push(r);
+    }
+  }
+  const included=jobs.filter(j=>j.included),decisionCounts={},conflictingPairs=[];
+  // Count each pair once; never allow an independent negative observation to
+  // silently close an earlier suspicion. Individual observations remain intact.
+  const priority=['suspected_duplicate','uncertain','possible_legitimate_reuse','no_correspondence'];
+  for(const [key,rows] of observed){
+    const decisions=[...new Set(rows.map(r=>r.record.observation.decision))];
+    const decision=priority.find(d=>decisions.includes(d));decisionCounts[decision]=(decisionCounts[decision]??0)+1;
+    if(decisions.length>1)conflictingPairs.push({assetIds:JSON.parse(key),decisions,jobIds:[...new Set(rows.map(r=>r.jobId))]});
+  }
+  const uninspectedPairs=[...eligible].filter(key=>!observed.has(key)).length;
+  let status=included.some(j=>j.status==='running')?'running':included.some(j=>j.status==='blocked')?'blocked':included.length?'completed':(jobs.find(j=>j.jobId===activeId)??jobs.at(-1)).status;
+  if(status==='completed'&&(jobs.some(j=>j.status==='missing')||included.some(j=>j.status!=='completed')||conflictingPairs.length))status='completed_with_gaps';
+  if(!included.length&&jobs.some(j=>j.status==='missing'))status='completed_with_gaps';
+  const next=included.find(j=>j.nextAction),counts={};
+  for(const j of included)for(const [key,n] of Object.entries(j.counts??{}))counts[key]=(counts[key]??0)+n;
+  const coverage={...(jobs.find(j=>j.jobId===activeId)??jobs.at(-1)),status,jobId:activeId,jobIds:[...ids],jobs,aggregation:'all_retained_jobs_with_current_sources_and_matching_scope',
+    counts,nextJobId:next?.jobId??null,nextTaskId:next?.nextTaskId??null,nextAction:next?.nextAction??null,
+    modelObservedPairs:observed.size,currentSourceModelObservedPairs:observed.size,decisionCounts,conflictingPairs,uninspectedPairs,pendingReviewTasks,scientificallyVerifiedPairs:0,
+    note:'Counts deduplicate pairs across valid jobs. Conflicting observations require review; earlier suspicions are not closed by starting another batch. Per-job exclusions remain disclosed; this is not whole-paper scientific verification.'};
+  return {coverage,issues,records,historicalRecords};
 }
 
 export async function readVisualComparison(s,{projectId,jobId,taskId,region=0}) {

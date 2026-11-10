@@ -97,3 +97,53 @@ test('different image pairs cannot inherit each others revision identity through
  const old={id:'old',issues:[make('one',['a','b'])],facts:[],documents:[]};old.revisionLedger=buildRevisionLedger(old,null);
  const next={id:'next',issues:[make('two',['c','d'])],facts:[],documents:[]};const ledger=buildRevisionLedger(next,old);assert.equal(ledger.items.length,2);assert.equal(ledger.items.find(i=>i.originIssueId==='one').currentIssueId,null);assert.equal(ledger.items.find(i=>i.originIssueId==='two').state,'new');
 });
+
+test('separate visual batches survive restart and appear together in MD, JSON and CSV',async t=>{
+ const{service,p,config}=await setup(t,3),a=(await service.listVisuals({projectId:p.id})).assets.map(a=>a.id);
+ const first=await start(service,p,{includeSelf:false,pairs:[[a[0],a[1]]]});const d=await deliver(service,p,first);await submit(service,p,first,d);
+ const second=await start(service,p,{includeSelf:false,pairs:[[a[1],a[2]]]});
+ // No intermediate audit: the previous batch must be discovered from saved jobs.
+ const restarted=await new AuditService(config).init();const run=await restarted.runAudit({projectId:p.id});
+ assert.equal(run.visualReview.records.length,1);assert.equal(run.visualReview.records[0].jobId,first.jobId);
+ assert.equal(run.issues.filter(i=>i.category==='visual_duplicate').length,1);
+ assert.equal(run.coverage.visualAgentReview.modelObservedPairs,1);assert.equal(run.coverage.visualAgentReview.uninspectedPairs,1);
+ assert.equal(run.coverage.visualAgentReview.jobs.length,2);
+ for(const format of ['md','json','csv']){const report=await restarted.exportReport({projectId:p.id,format});assert.ok(report.content.includes('视觉模型提出图片重复疑点'));}
+ const next=await deliver(restarted,p,second);await submit(restarted,p,second,next,decision('no_correspondence'));
+ const final=await restarted.runAudit({projectId:p.id});assert.equal(final.visualReview.records.length,2);assert.equal(final.coverage.visualAgentReview.modelObservedPairs,2);
+ assert.equal(final.issues.filter(i=>i.category==='visual_duplicate').length,1);
+});
+test('overlapping batches count each pair once and cannot silently erase conflicting suspicions',async t=>{
+ const{service,p}=await setup(t),first=await start(service,p),d=await deliver(service,p,first);await submit(service,p,first,d);
+ const second=await start(service,p),d2=await deliver(service,p,second);await submit(service,p,second,d2,decision('no_correspondence'));
+ const run=await service.runAudit({projectId:p.id}),v=run.coverage.visualAgentReview;
+ assert.equal(run.visualReview.records.length,2);assert.equal(v.modelObservedPairs,1);assert.equal(v.conflictingPairs.length,1);
+ assert.equal(v.decisionCounts.suspected_duplicate,1);assert.equal(v.status,'completed_with_gaps');assert.equal(run.issues.filter(i=>i.category==='visual_duplicate').length,1);
+ await service.visualReview({projectId:p.id,jobId:first.jobId,action:'reopen',taskId:d.taskId,reason:'Synthetic explicit correction'});
+ const reopened=await service.runAudit({projectId:p.id});assert.equal(reopened.issues.filter(i=>i.category==='visual_duplicate').length,0);
+ assert.equal(reopened.coverage.visualAgentReview.pendingReviewTasks,1);assert.equal(reopened.coverage.visualAgentReview.status,'running');
+ assert.equal(reopened.coverage.visualAgentReview.nextJobId,first.jobId);assert.equal(reopened.coverage.visualAgentReview.nextTaskId,d.taskId);
+});
+test('cancelled and stale batches stay historical while valid observations remain current',async t=>{
+ const{service,p,root}=await setup(t),first=await start(service,p),d=await deliver(service,p,first);await submit(service,p,first,d);
+ await service.visualReview({projectId:p.id,jobId:first.jobId,action:'cancel'});
+ const second=await start(service,p),d2=await deliver(service,p,second);await submit(service,p,second,d2,decision('no_correspondence'));
+ const run=await service.runAudit({projectId:p.id});assert.equal(run.visualReview.records.length,1);assert.equal(run.visualReview.historicalRecords.length,1);
+ assert.equal(run.issues.filter(i=>i.category==='visual_duplicate').length,0);assert.equal(run.coverage.visualAgentReview.modelObservedPairs,1);
+ await writeFile(path.join(root,'image0.png'),picture(true));
+ const stale=await service.runAudit({projectId:p.id});assert.equal(stale.visualReview.records.length,0);assert.equal(stale.visualReview.historicalRecords.length,2);
+ assert.equal(stale.coverage.visualAgentReview.currentSourceModelObservedPairs,0);assert.equal(stale.issues.filter(i=>i.category==='visual_duplicate').length,0);
+});
+test('missing retained job files are explicit coverage gaps rather than silently dropped batches',async t=>{
+ const{service,p}=await setup(t),first=await start(service,p),d=await deliver(service,p,first);await submit(service,p,first,d);
+ const second=await start(service,p),d2=await deliver(service,p,second);await submit(service,p,second,d2,decision('no_correspondence'));
+ await rm(path.join(service.dir(p.id),'visual-review',first.jobId+'.json'));
+ const run=await service.runAudit({projectId:p.id});assert.equal(run.coverage.visualAgentReview.status,'completed_with_gaps');
+ assert.ok(run.coverage.visualAgentReview.jobs.some(j=>j.jobId===first.jobId&&j.status==='missing'));
+});
+test('report scope does not import observations from differently scoped jobs',async t=>{
+ const{service,p}=await setup(t),first=await start(service,p),d=await deliver(service,p,first);await submit(service,p,first,d);
+ const run=await service.runAudit({projectId:p.id,settings:{scope:'si'}});
+ assert.equal(run.visualReview.records.length,0);assert.equal(run.issues.filter(i=>i.category==='visual_duplicate').length,0);
+ assert.equal(run.coverage.visualAgentReview.status,'outside_run_scope');
+});

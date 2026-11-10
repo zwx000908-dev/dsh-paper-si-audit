@@ -10,14 +10,15 @@ const manifest=JSON.parse(await readFile(path.join(root,'benchmarks/biofors-exte
 if(mapping.manifestHash!==createHash('sha256').update(JSON.stringify(manifest)).digest('hex'))throw new Error('Frozen manifest mapping mismatch');
 const files=(await stat(input)).isDirectory()?(await readdir(input)).filter(f=>f.endsWith('.json')).map(f=>path.join(input,f)):[input];
 const runs=new Map();
-for(const file of files){const r=JSON.parse(await readFile(file,'utf8')),job=mapping.jobs.find(j=>j.projectId===r.projectId&&j.jobId===r.visualReview?.coverage.jobId);if(!job)continue;
+for(const file of files){const r=JSON.parse(await readFile(file,'utf8')),job=mapping.jobs.find(j=>j.projectId===r.projectId&&(r.visualReview?.coverage.jobIds??[r.visualReview?.coverage.jobId]).includes(j.jobId));if(!job)continue;
  for(const a of manifest.assets.filter(a=>a.path.startsWith(job.paperId+'/')))if(!r.documents.some(d=>d.sha256===a.sha256))throw new Error('Real source missing from run');
  const prior=runs.get(r.projectId);if(!prior||r.createdAt>prior.createdAt)runs.set(r.projectId,r);
 }
 if(!runs.size)throw new Error('No exported audit reports match the prepared benchmark projects/jobs');
 const cases=manifest.cases.map(c=>{
- const linked=mapping.cases.find(x=>x.id===c.id),run=runs.get(linked?.projectId),r=run?.visualReview.records.find(r=>r.taskId===linked.taskId);let observed='abstain';
- if(run&&!['stale','cancelled'].includes(run.visualReview.coverage.status)&&r?.state==='submitted')observed=['suspected_duplicate','possible_legitimate_reuse'].includes(r.record.observation.decision)?'positive':r.record.observation.decision==='no_correspondence'?'negative':'abstain';
+ const linked=mapping.cases.find(x=>x.id===c.id),run=runs.get(linked?.projectId),r=run?.visualReview.records.find(r=>r.taskId===linked.taskId&&(r.jobId??run.visualReview.coverage.jobId)===linked.jobId);let observed='abstain';
+ const jobStatus=run?.visualReview.coverage.jobs?.find(j=>j.jobId===linked?.jobId)?.status??run?.visualReview.coverage.status;
+ if(run&&!['stale','cancelled','missing','outside_run_scope'].includes(jobStatus)&&r?.state==='submitted')observed=['suspected_duplicate','possible_legitimate_reuse'].includes(r.record.observation.decision)?'positive':r.record.observation.decision==='no_correspondence'?'negative':'abstain';
  const program=baseline.cases.find(x=>x.id===c.id).observed;
  const combined=program==='positive'||observed==='positive'?'positive':program==='negative'&&observed==='negative'?'negative':'abstain';
  return{id:c.id,paperId:c.paperId,category:c.category,expected:c.expected,observed,program,combined,model:r?.record.actor??null};

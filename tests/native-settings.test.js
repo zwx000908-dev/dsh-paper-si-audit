@@ -26,15 +26,15 @@ test('live Config reference updates reach subsequent tools and new projects with
  const q=await service.createProject({name:'after'});assert.equal(q.settingsSnapshot.hrms.ppmTolerance,3);
 });
 test('settings endpoint checks owner, validates advanced templates and sends revision-fenced native edits',async t=>{
- const section=readRuntimeConfig(Config(await base(t)));let writes=[];const controller={ctx:{invocation:{peer:{principal:{kind:'owner'}}},settings:{mutate:async(...a)=>writes.push(a)}}};
- await PaperSettingsController.prototype.save.call(controller,section,4);assert.equal(writes.length,1);assert.equal(writes[0][0],'paper-si-audit');assert.equal(writes[0][2],4);
+ const section=readRuntimeConfig(Config(await base(t)));let writes=[];const controller={ctx:{invocation:{peer:{principal:{kind:'owner'}}},settings:{mutate:async(...a)=>writes.push(a),describe:()=>[{ns:"paper-si-audit",value:section,revision:5}]}}};
+ const saved=await PaperSettingsController.prototype.save.call(controller,section,4);assert.equal(saved.view.revision,5);assert.deepEqual(saved.view.value,section);assert.equal(writes.length,1);assert.equal(writes[0][0],'paper-si-audit');assert.equal(writes[0][2],4);
  await assert.rejects(PaperSettingsController.prototype.save.call(controller,{...section,defaults:{formatting:{profileText:'broken: [yaml'}}},4));assert.equal(writes.length,1);
  await assert.rejects(PaperSettingsController.prototype.save.call(controller,section,undefined));controller.ctx.invocation.peer.principal.kind='guest';await assert.rejects(PaperSettingsController.prototype.save.call(controller,section,4));assert.equal(writes.length,1);
 });
 test('invalid directories are rejected before saving, without creating output folders',async t=>{
  const options=await base(t),section=readRuntimeConfig(Config(options));
  const file=path.join(options.root,'not-a-directory.txt');await writeFile(file,'fixture');
- let writes=0;const controller={ctx:{invocation:{peer:{principal:{kind:'owner'}}},settings:{mutate:async()=>{writes++;}}}};
+ let writes=0;const controller={ctx:{invocation:{peer:{principal:{kind:'owner'}}},settings:{mutate:async()=>{writes++;},describe:()=>[{ns:"paper-si-audit",value:section,revision:2}]}}};
  for(const invalid of [
   {...section,allowedRoots:[path.join(options.root,'missing')]},
   {...section,allowedRoots:[file]},
@@ -64,10 +64,10 @@ test('missing source directories do not block settings registration; live repair
  assert.deepEqual(await execute(),{projects:[]});
 });
 test('client module registers visible settings section and saves through validated endpoint',async()=>{
- let loaded,registration,sent;const form={};vm.runInNewContext(await readFile(new URL('../client/index.js',import.meta.url),'utf8'),{window:{__ModuleLoader__:{load:v=>loaded=v}},structuredClone});
+ let loaded,registration,sent,folded;const form={},view={ns:"paper-si-audit",value:{defaults:{scope:"si"}},revision:13};vm.runInNewContext(await readFile(new URL('../client/index.js',import.meta.url),'utf8'),{window:{__ModuleLoader__:{load:v=>loaded=v}},structuredClone});
  const plugin=loaded.factory(name=>{assert.equal(name,'react');return {createElement(){}}});assert.equal(loaded.id,'dsh-paper-si-audit');
- plugin.apply({effect:fn=>fn(),configForms:{get:id=>{assert.equal(id,'paper-si-audit');return form;}},slots:{inject:(name,fn)=>fn(),register:(options,page)=>{registration={options,page};return()=>{};}},connection:{rpc:{call:async(...args)=>{sent=args;return{ok:true,value:{saved:true}};}}}});
- assert.equal(registration.options.name,'settings.section');assert.equal(registration.options.label(),'论文核对');const props=registration.options.inject();assert.equal(props.form,form);await props.save({defaults:{scope:'si'}},12);assert.equal(sent[1],'paperAuditSettings/save');assert.equal(sent[2].args.expectedRevision,12);
+ plugin.apply({effect:fn=>fn(),configForms:{get:id=>{assert.equal(id,'paper-si-audit');return form;},describe:()=>({acceptView:value=>{folded=value;}})},slots:{inject:(name,fn)=>fn(),register:(options,page)=>{registration={options,page};return()=>{};}},connection:{rpc:{call:async(...args)=>{sent=args;return{ok:true,value:{saved:true,view}};}}}});
+ assert.equal(registration.options.name,'settings.section');assert.equal(registration.options.label(),'论文核对');const props=registration.options.inject();assert.equal(props.form,form);await props.save({defaults:{scope:'si'}},12);assert.equal(sent[1],'paperAuditSettings/save');assert.equal(sent[2].args.expectedRevision,12);assert.equal(folded,view);
 });
 async function imageProject(t){const options=await base(t),service=await new AuditService(options).init(),p=await service.createProject({name:'multimodal'});const c=createCanvas(90,90),x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,90,90);x.fillStyle='black';x.fillRect(10,10,35,35);const file=path.join(options.root,'figure.png');await writeFile(file,c.toBuffer('image/png'));await service.addDocument({projectId:p.id,filePath:file,role:'si'});return{service,p};}
 test('new workflow prepares original images without OCR and explicitly hands off multimodal review',async t=>{

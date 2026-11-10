@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createToolDefinitions } from '../src/plugin.js';
+import { PaperSettingsController } from '../src/settings-controller.js';
 
 const expectedToolNames = createToolDefinitions({}).map(tool => tool.name);
 
@@ -48,7 +49,8 @@ async function runProbe(ctx, config) {
   if(previewSettings.effective.scope!=='si'||previewSettings.projectEffective.scope!=='all'||previewSettings.effective.report.includeImages!==false)throw new Error('Native settings precedence failed');
   await invoke('paper_audit_configure_settings', {projectId:project.id,reset:true});
   form=nativeSettings.describe().find(x=>x.ns==='paper-si-audit');
-  await nativeSettings.mutate('paper-si-audit',[{op:'set',path:['defaults','scope'],value:'si'}],form.revision);
+  const savedSettings=await PaperSettingsController.prototype.save.call({ctx:{settings:nativeSettings,invocation:{peer:{principal:{kind:'owner'}}}}},{...form.value,defaults:{...form.value.defaults,scope:'si'}},form.revision);
+  if(savedSettings.view.value.defaults.scope!=='si'||savedSettings.view.revision<=form.revision||savedSettings.view.ns!=='paper-si-audit'||!savedSettings.view.schema)throw new Error('Validated save did not return the new native namespace view');
   const afterLive=await invoke('paper_audit_settings',{});
   if(afterLive.pluginDefaults.scope!=='si')throw new Error('Native UI write did not reach tools');
   if((await invoke('paper_audit_settings',{projectId:project.id})).effective.scope!=='all')throw new Error('Native global write changed an old project');
