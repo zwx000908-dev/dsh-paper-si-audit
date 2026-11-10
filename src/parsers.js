@@ -203,7 +203,16 @@ function tableRow(acc, values, headers, locator, metadata = {}) {
 
 function parseText(text, acc) {
   const lines = text.split(/\r\n|\n|\r/);
-  lines.forEach((line, index) => acc.add(line, { label: `Line ${index + 1}`, line: index + 1 }));
+  let headers = null, table = 0, row = 0;
+  const cells = line => line.trim().replace(/^\||\|$/g, '').split('|').map(s => s.trim());
+  lines.forEach((line, index) => {
+    if (line.includes('|') && index + 1 < lines.length && cells(lines[index + 1]).every(c => /^:?-{3,}:?$/.test(c))) { headers = cells(line); table++; row = 0; }
+    if (headers && cells(line).every(c => /^:?-{3,}:?$/.test(c))) return;
+    if (headers && line.includes('|') && cells(line).length === headers.length) {
+      const before = acc.blocks.length; tableRow(acc, cells(line), headers, { label: `Line ${index + 1}`, line: index + 1, table, row: ++row }, { headerInferred: true, headerRow: row === 1 });
+      if (acc.blocks.length > before) acc.blocks.at(-1).text = line; // preserve exact source offsets for quotations
+    } else { headers = null; acc.add(line, { label: `Line ${index + 1}`, line: index + 1 }); }
+  });
   return { totalUnits: lines.length, parsedUnits: lines.length };
 }
 

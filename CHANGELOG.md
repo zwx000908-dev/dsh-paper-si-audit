@@ -1,3 +1,11 @@
+# 0.5.0 (development)
+
+- Add explicit table/figure reference checks and supported quantitative table comparisons.
+- Track issue lineage across revisions with evidence relocation, explicit human closure, and reopening.
+- Extract local natural experimental prose with unit conversion and explicit missing assumptions.
+- Add durable whole-project material preparation/OCR/audit jobs with restart, failure retry and coverage snapshots.
+- Keep Harness 0.2.2-rc.1 compatibility and the existing stable v0.2.0 release.
+
 # 0.4.0 (development)
 
 - Add candidate compound dossiers, explicit evidence decisions and configurable material checklists.

@@ -66,6 +66,15 @@ export function renderMarkdown(run, evidenceFrom) {
     if (group.length > 5) lines.push('', `另 ${group.length - 5} 条未在摘要中展开。`);
     lines.push('');
   }
+  if (run.crossReferences) lines.push('## 图表与结论交叉核对', '', `定位图注 ${run.crossReferences.coverage.definitions}；引用 ${run.crossReferences.coverage.references}；数值比较 ${run.crossReferences.coverage.checked}；信息不足 ${run.crossReferences.coverage.insufficient}。图中曲线、结构和任意语义结论不属于自动数值核验。`, '');
+  if (run.experimentalProseRecords?.length) lines.push('## 实验叙述解析', '', `提取 ${run.experimentalProseRecords.length} 组局部记录；可复算 ${run.experimentalProseRecords.filter(r => r.calculation).length} 组。缺少摩尔质量、限制试剂或计量关系时保留缺项，不默认 1:1。完整输入与引用见 JSON/原生 experiments 工具。`, '');
+  if (run.workflow) lines.push('整篇任务：' + run.workflow.jobId + '；已登记任务 ' + run.workflow.tasks.length + '；执行失败 ' + run.workflow.failures.length + '。任务明细及检查点保存在 JSON 和 workflow 工具中。', '');
+  if (run.materialReadings?.length) lines.push('## 整篇图像文字读取', '', `已保存 ${run.materialReadings.length} 份 OCR 记录，均保留未确认标记；读取文字不代表完成表格、谱线或结构验证。失败和未覆盖内容见覆盖记录。`, '');
+  if (run.revisionLedger) {
+    lines.push('## 问题闭环台账', '', '消失不自动关闭。candidate_resolved 为疑似修复，cannot_revalidate 为无法复核，closed_by_user 仅来自用户对新证据的明确复核。', '', '| 跟踪 ID | 原问题 | 当前状态 | 当前问题 ID |', '|---|---|---|---|');
+    for (const row of run.revisionLedger.items.filter(r => r.state !== 'new')) lines.push(`| ${row.id} | ${line(row.title)} | ${row.state} | ${row.currentIssueId ?? ''} |`);
+    lines.push('', `状态计数：${JSON.stringify(run.revisionLedger.counts)}`, '');
+  }
   if (run.changes) lines.push('## 修订复核', '', '```json', JSON.stringify(run.changes, null, 2), '```', '');
   return lines.join('\n');
 }

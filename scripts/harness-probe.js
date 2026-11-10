@@ -1,5 +1,5 @@
 /** Synthetic tool probe loaded only by scripts/harness-smoke.js. No model request. */
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { createToolDefinitions } from '../src/plugin.js';
@@ -112,6 +112,33 @@ export async function apply(ctx, config) {
   if (exported.imageTables[0]?.review.status !== 'accepted' || exported.imageTables[0]?.rows[1].cells[2].originalOCRText !== '92' || !exported.facts.some(fact => fact.evidenceOrigin === 'image_table_ocr') || !exported.hrmsRecords.length) throw new Error('JSON export lost original OCR, user correction history, visual facts or HRMS records');
   if (createHash('sha256').update(await readFile(sourceImage)).digest('hex') !== sourceHash) throw new Error('Original synthetic image was modified');
 
+  let wholeJob = await invoke('paper_audit_workflow', { projectId: project.id, action: 'start', maxSteps: 10 });
+  for (let i = 0; i < 10 && wholeJob.nextAction; i++) wholeJob = await invoke('paper_audit_workflow', { projectId: project.id, action: 'resume', maxSteps: 10 });
+  if (!['completed', 'completed_with_gaps'].includes(wholeJob.status) || !wholeJob.latestRunId) throw new Error('Native durable workflow did not finish');
+  const materialText = await invoke('paper_audit_material_text', { projectId: project.id });
+  if (materialText.total !== 3) throw new Error('Whole-project OCR did not read all source images');
+  const materialWords = await invoke('paper_audit_material_text', { projectId: project.id, readingId: materialText.items[0].id });
+  if (!materialWords.items.length) throw new Error('Native material OCR word evidence absent');
+  const revisionProject = await invoke('paper_audit_create', { name: 'Synthetic revision and claim checks' });
+  const revisionMain = path.join(config.sourceDir, 'revision-main.md'), revisionSI = path.join(config.sourceDir, 'revision-si.md');
+  const oldText = 'Compound 3a: formula: C2H6O; 1H NMR δ 1.0 (s, 8H).\nThe isolated yield reached up to 98% yield (Table S1).\nThe limiting reagent 1a (0.20 mmol) was used; product molar mass is 300 g/mol and stoichiometric factor is 1. Purification afforded 3b (48 mg, 90% yield).';
+  await writeFile(revisionMain, oldText); await writeFile(revisionSI, 'Table S1. Optimization.\n| Entry | Product | isolated yield |\n|---|---|---|\n| 1 | 3a | 92 |');
+  await invoke('paper_audit_add_document', { projectId: revisionProject.id, filePath: revisionMain, role: 'main' });
+  await invoke('paper_audit_add_document', { projectId: revisionProject.id, filePath: revisionSI, role: 'si' });
+  await invoke('paper_audit_run', { projectId: revisionProject.id });
+  const refs = await invoke('paper_audit_cross_references', { projectId: revisionProject.id });
+  if (!refs.items.some(r => r.kind === 'maximum' && r.status === 'needs_review' && r.actual === 92)) throw new Error('Native conclusion/table mismatch absent');
+  const prose = await invoke('paper_audit_experiments', { projectId: revisionProject.id });
+  if (!prose.items.some(r => r.origin === 'experimental_prose' && r.calculation?.calculated === '80')) throw new Error('Native prose arithmetic absent');
+  await writeFile(revisionMain, oldText.replace('8H', '6H'));
+  const revised = await invoke('paper_audit_run', { projectId: revisionProject.id });
+  const lineage = await invoke('paper_audit_revisions', { projectId: revisionProject.id });
+  const resolved = lineage.items.find(r => r.state === 'candidate_resolved');
+  if (!resolved) throw new Error('Native revision tracking lost corrected issue');
+  await invoke('paper_audit_revalidate', { projectId: revisionProject.id, runId: revised.id, trackingId: resolved.id, status: 'fixed', reason: 'Synthetic explicit-user-state fixture; not human review of research data', citationsJson: JSON.stringify(resolved.currentCitations) });
+  const closed = await invoke('paper_audit_revisions', { projectId: revisionProject.id });
+  if (!closed.items.some(r => r.id === resolved.id && r.state === 'closed_by_user')) throw new Error('Native explicit revalidation not recorded');
+
   // Emit only after this apply returns, so Loader can finish this probe's activation.
   setImmediate(() => process.stdout.write(JSON.stringify({ jsonrpc: '2.0', method: 'paper-audit.smoke', params: {
     passed: true, nativeToolCount: expectedToolNames.length, projectId: project.id, runId: run.id,
@@ -119,6 +146,7 @@ export async function apply(ctx, config) {
     engineVersion: run.engineVersion, execution: run.execution,
     evidenceRead: true, reportExported: true, semanticStatus: run.coverage.semanticStatus,
     modelCalls: 0, syntheticDataOnly: true,
+    crossReferencesChecked: true, proseExtractionChecked: true, revisionRevalidationChecked: true, wholeProjectWorkflowChecked: true,
     exactMassCalculated: true, webPanelIncluded: false,
     nmrFormulaChecked: true, duplicateImagesChecked: true,
     compoundRegistryChecked: true, panelExtractionChecked: true, spectrumLabelsCompared: true, experimentalYieldCalculated: true,

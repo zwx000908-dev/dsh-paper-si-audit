@@ -47,10 +47,11 @@ for (const [member, data] of contents) {
 }
 const plugin = await import(pathToFileURL(path.join(unpacked, 'package/src/plugin.js')));
 const nativeTools = plugin.createToolDefinitions({});
-assert.equal(nativeTools.length, 32);
+assert.equal(nativeTools.length, 38);
 assert.ok(nativeTools.some(tool => tool.name === 'paper_audit_prepare_image_audit'));
 for (const member of ['src/nmr.js', 'src/image-duplicates.js', 'docs/NMR-AND-IMAGES.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
 for (const member of ['src/compounds.js', 'src/panels.js', 'src/spectrum-check.js', 'src/experimental-math.js', 'src/evaluation.js', 'src/scientific-config.js', 'docs/SCIENTIFIC-WORKFLOW.md', 'benchmarks/README.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
+for (const member of ['src/cross-check.js', 'src/revisions.js', 'src/experimental-prose.js', 'src/workflow.js', 'docs/WORKFLOW-0.5.md']) assert.ok(members.includes('package/' + member), `Missing ${member}`);
 const massModule = await import(pathToFileURL(path.join(unpacked, 'package/src/hrms.js')));
 const mass = massModule.calculateExactMass({ formula: 'C6H12O6', ion: '[M+H]+', formulaBasis: 'neutral' });
 assert.equal(mass.status, 'calculated');

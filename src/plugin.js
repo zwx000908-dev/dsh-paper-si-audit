@@ -19,6 +19,7 @@ export const Config = Schema.object({
 
 export const AUDIT_GUIDANCE = `Paper–SI Audit is an evidence-grounded manuscript/SI audit plugin.
 Use paper_audit_compounds to inspect candidate dossiers and source records. Never equate identical labels with confirmed identity. Save only user-selected material requirements; set_compound and review_spectrum record explicit human decisions, not model approval. Use read_spectrum for explicit image labels and separately cited document captions; fieldOrigins must distinguish them. Bare trace numbers are not integrals. Experimental calculators require explicit molar mass, limiting amount and stoichiometric factor; no default 1:1 assumption or substitution of HRMS m/z.
+Use paper_audit_workflow start/resume for requested whole-project coverage; follow nextAction until null, inspect failures and OCR scope. It persists checkpoints and never accepts OCR. Use paper_audit_cross_references for explicit graph/table targets and supported table claims; unlocated is not absent. Use paper_audit_experiments for local natural-prose extraction and missing assumptions. Use paper_audit_revisions to track historical issues; paper_audit_revalidate is only for an explicit user decision with current exact citations. Never auto-close disappeared issues.
 Use paper_audit_create and paper_audit_add_document only for the user-selected files within configured allowedRoots.
 Run deterministic checks with paper_audit_run. Inspect coverage, issues, and source blocks using the paged tools.
 For NMR, inspect nmr_formula issues and coverage.nmrFormula. Reported 1H integrals and 13C counts are checked against associated molecular formula candidates, not raw spectra or structural identity. Missing integrals and ambiguous ion formulas require review.
@@ -77,6 +78,7 @@ function summarizeRun(run) {
     execution: run.execution,
     issueSummary: run.issueSummary,
     changes: run.changes,
+    revisionCounts: run.revisionLedger?.counts,
     profileChangedSinceRun: run.profileChangedSinceRun,
     hrmsSettingsChangedSinceRun: run.hrmsSettingsChangedSinceRun,
     imageTablesChangedSinceRun: run.imageTablesChangedSinceRun,
@@ -109,6 +111,24 @@ export function createToolDefinitions(service, bridge = {}) {
   });
 
   return [
+    tool('paper_audit_cross_references', 'Read explicit figure/table references, quantitative claims and exact source citations from a frozen audit. Missing targets mean not located; graph traces are not automatically interpreted.', {
+      projectId: id('Project ID.'), runId: optionalId('Run ID.'), definitions: { type: 'boolean', description: 'Return target captions instead of checks.' }, ...paging,
+    }, async args => { const r = await service.getRun(args); return { runId: r.id, coverage: r.crossReferences?.coverage, ...paginate((args.definitions ? r.crossReferences?.definitions : r.crossReferences?.records) ?? [], args) }; }),
+    tool('paper_audit_revisions', 'Read the persistent issue lineage: new, still present, reopened, candidate resolved, cannot revalidate, or closed by explicit user decision.', {
+      projectId: id('Project ID.'), runId: optionalId('Run ID.'), ...paging,
+    }, async args => { const r = await service.getRun(args); return { runId: r.id, counts: r.revisionLedger?.counts, ...paginate(r.revisionLedger?.items ?? [], args) }; }),
+    tool('paper_audit_revalidate', 'Record an explicit human revalidation after a new audit. Never call fixed on the model own initiative. Exact current citations and reason are required; issue disappearance alone cannot close it.', {
+      projectId: id('Project ID.'), runId: id('Latest run ID.'), trackingId: id('Revision tracking ID.'), status: id('fixed or needs_review, as explicitly decided by user.'), reason: id('User reason.'), citationsJson: id('Array of exact current {blockId,start,end,quote} citations covering all relocated evidence.'),
+    }, args => service.revalidateIssue({ ...args, citations: JSON.parse(args.citationsJson) })),
+    tool('paper_audit_experiments', 'Read natural experimental prose extraction or labelled experimental calculations, with missing fields, units, ambiguity and citations. Missing limiting reagent/stoichiometry/molar mass are never inferred from 1 equiv or HRMS m/z.', {
+      projectId: id('Project ID.'), runId: optionalId('Run ID.'), ...paging,
+    }, async args => { const r = await service.getRun(args); return { runId: r.id, ...paginate([...(r.experimentalProseRecords ?? []), ...(r.experimentalRecords ?? [])], args) }; }),
+    tool('paper_audit_workflow', 'Start/resume/status/cancel/retry_failed a durable whole-project rendering, optional provisional OCR, and deterministic audit pipeline. Start or resume performs bounded steps; follow nextAction until null. Source/settings changes require a new job. Finished pipeline does not mean every scientific check passed.', {
+      projectId: id('Project ID.'), action: optionalId('start, resume, status (default), cancel, retry_failed.'), jobId: optionalId('Job ID; default active job.'), maxSteps: { type: 'integer', description: 'Work units per call, 1–25, default 3.' }, ocr: { type: 'boolean', description: 'On start, read every prepared image as provisional text; default true. No automatic OCR approval.' },
+    }, (args, exec) => service.workflow({ ...args, signal: exec?.signal, executionEvidence: { toolCallId: exec?.toolCallId, toolName: 'paper_audit_workflow' } })),
+    tool('paper_audit_material_text', 'Read provisional full-page/image OCR from the workflow. Text-only OCR does not validate tables, spectra, structures or numerical conclusions. Use row-specific table/spectrum tools for scientific checks.', {
+      projectId: id('Project ID.'), readingId: optionalId('Choose a reading for paged OCR word boxes.'), ...paging,
+    }, async args => { const items = await service.getMaterialReadings(args); if (!args.readingId) return paginate(items.map(({ rawText, words, ...r }) => ({ ...r, wordCount: words.length, preview: rawText.slice(0, 400) })), args); const r = items.find(r => r.id === args.readingId); if (!r) throw new Error('Unknown reading'); const { words, rawText, ...metadata } = r; return { ...metadata, ...paginate(words, args) }; }),
     tool('paper_audit_calculate_experiment', 'Recalculate an explicitly supplied yield, mass/amount or concentration record. Requires declared product molar mass and stoichiometric factor for yield. This standalone calculation does not verify source attribution; cite original evidence when reporting it.', {
       inputJson: id('JSON kind=yield/mass_amount/concentration and numeric fields. See docs/SCIENTIFIC-WORKFLOW.md.'), optionsJson: optionalId('Optional bounded tolerance configuration JSON.'),
     }, args => calculateExperiment(JSON.parse(args.inputJson), args.optionsJson ? JSON.parse(args.optionsJson) : {})),

@@ -16,6 +16,10 @@ import { extractPanels, annotatedPair } from './panels.js';
 import { validateScientificConfig } from './scientific-config.js';
 import { parseSpectrumLabels, validateSpectrumFields, checkSpectrumReadings } from './spectrum-check.js';
 import { checkExperimentalMath } from './experimental-math.js';
+import { checkExperimentalProse } from './experimental-prose.js';
+import { checkCrossReferences } from './cross-check.js';
+import { buildRevisionLedger, applyRevalidations, validateRevalidation } from './revisions.js';
+import { workflowAction } from './workflow.js';
 
 const ID = /^[a-zA-Z0-9_-]{1,100}$/;
 const STATES = new Set(['confirmed', 'reasonable_difference', 'extraction_error', 'insufficient', 'fixed_pending_recheck']);
@@ -54,14 +58,18 @@ export class AuditService {
     return this;
   }
   dir(id) { return path.join(this.dataDir, 'projects', safeID(id)); }
-  async locked(id, fn) {
+  async locked(id, fn, lockName = '.lock') {
     await mkdir(this.dir(id), { recursive: true });
-    const lock = path.join(this.dir(id), '.lock');
+    const lock = path.join(this.dir(id), lockName);
     const deadline = Date.now() + 30000;
     let handle;
     while (!handle) {
       try { handle = await open(lock, 'wx'); await handle.writeFile(JSON.stringify({ pid: process.pid, at: new Date().toISOString() })); }
-      catch (error) { if (error.code !== 'EEXIST' || Date.now() > deadline) throw new Error(`Project busy or stale lock; retry or inspect ${lock}`); await new Promise(r => setTimeout(r, 75)); }
+      catch (error) {
+        if (error.code === 'EEXIST') {
+          try { const owner = await json(lock); if (Number.isInteger(owner.pid) && owner.pid > 0) { try { process.kill(owner.pid, 0); } catch (e) { if (e.code === 'ESRCH') { const again = await json(lock); if (JSON.stringify(again) === JSON.stringify(owner)) await unlink(lock); continue; } } } } catch (e) { if (e.code === 'ENOENT') continue; }
+        }
+        if (error.code !== 'EEXIST' || Date.now() > deadline) throw new Error(`Project busy or stale lock; retry or inspect ${lock}`); await new Promise(r => setTimeout(r, 75)); }
     }
     try { return await fn(); } finally { await handle.close(); await unlink(lock); }
   }
@@ -104,7 +112,7 @@ export class AuditService {
       const imports = path.join(this.dir(projectId), 'imports');
       if (!replaceKey && displayName && within(imports, target)) replaceKey = p.documents.find(d => d.name === document.name && d.role === role && within(imports, d.filePath))?.key;
       if (replaceKey && !p.documents.some(d => d.key === replaceKey && d.role === role)) throw new Error('Replacement source does not exist with this role');
-      const key = hash(`${target}\0${role}`).slice(0, 24);
+      const key = replaceKey ?? hash(`${target}\0${role}`).slice(0, 24);
       p.documents = p.documents.filter(d => d.key !== key && d.key !== replaceKey);
       if (p.documents.length >= 64) throw new Error('MVP supports at most 64 source entries');
       p.documents.push({ key, filePath: target, role, name: document.name, sha256: document.sha256, coverage: document.coverage });
@@ -251,7 +259,11 @@ export class AuditService {
           const bytes = await readFile(renderedPath); if (hash(bytes) !== asset.sha256) throw new Error('Rendered asset hash mismatch');
           const contentDir = path.join(this.dir(projectId), 'visuals', 'content'); await mkdir(contentDir, { recursive: true });
           asset.path = path.join(contentDir, `${asset.sha256}.png`);
-          try { await writeFile(asset.path, bytes, { flag: 'wx' }); } catch (error) { if (error.code !== 'EEXIST') throw error; if (hash(await readFile(asset.path)) !== asset.sha256) throw new Error('Stored visual content hash mismatch'); }
+          try { await writeFile(asset.path, bytes, { flag: 'wx' }); } catch (error) {
+        if (error.code === 'EEXIST') {
+          try { const owner = await json(lock); if (Number.isInteger(owner.pid) && owner.pid > 0) { try { process.kill(owner.pid, 0); } catch (e) { if (e.code === 'ESRCH') { const again = await json(lock); if (JSON.stringify(again) === JSON.stringify(owner)) await unlink(lock); continue; } } } } catch (e) { if (e.code === 'ENOENT') continue; }
+        }
+        if (error.code !== 'EEXIST') throw error; if (hash(await readFile(asset.path)) !== asset.sha256) throw new Error('Stored visual content hash mismatch'); }
         }
         assets.push(asset);
       }
@@ -346,14 +358,14 @@ export class AuditService {
       await atomic(file, table); p.visualRevision = (p.visualRevision ?? 0) + 1; await atomic(path.join(this.dir(projectId), 'project.json'), p); return record;
     });
   }
-  async runAudit({ projectId, executionEvidence }) {
+  async runAudit({ projectId, executionEvidence, workflowSnapshot }) {
     return this.locked(projectId, async () => {
       const p = await this.getProject(projectId);
       if (!p.documents.length) throw new Error('Import documents before running an audit');
       const documents = [];
       for (const source of p.documents) {
-        try { const target = await this.sourcePath(p, source.filePath); const document = await parseDocument({ filePath: target, role: source.role }); document.name = source.name; source.sha256 = document.sha256; source.coverage = document.coverage; documents.push(document); }
-        catch (error) { documents.push({ id: `failed-${source.key}`, name: source.name, role: source.role, format: path.extname(source.name), sha256: null, blocks: [], coverage: { status: 'failed', totalUnits: 1, parsedUnits: 0, warnings: [String(error.message)] } }); }
+        try { const target = await this.sourcePath(p, source.filePath); const document = await parseDocument({ filePath: target, role: source.role }); document.name = source.name; document.sourceKey = source.key; source.sha256 = document.sha256; source.coverage = document.coverage; documents.push(document); }
+        catch (error) { documents.push({ id: `failed-${source.key}`, sourceKey: source.key, name: source.name, role: source.role, format: path.extname(source.name), sha256: null, blocks: [], coverage: { status: 'failed', totalUnits: 1, parsedUnits: 0, warnings: [String(error.message)] } }); }
       }
       const visualCoverage = { activeTables: 0, provisionalTables: 0, acceptedTables: 0, rejectedTables: 0, staleTables: [], failedTables: [] };
       const imageTables = [];
@@ -373,6 +385,8 @@ export class AuditService {
       const hrms = checkHrms(documents, p.hrmsOptions ?? DEFAULT_HRMS);
       const nmr = checkNmr(documents, hrms.records, scientificOptions);
       const experimental = checkExperimentalMath(documents, scientificOptions);
+      const prose = checkExperimentalProse(documents, scientificOptions);
+      const cross = checkCrossReferences(documents, result.facts);
       const activeAssets = (p.visualAssets ?? []).filter(a => !p.activeVisuals || p.activeVisuals[a.originKey] === a.id);
       const currentAssets = activeAssets.filter(a => documents.some(d => d.id === a.documentId && d.sha256 === a.sourceSha256));
       const imageSignature = hash(JSON.stringify([currentAssets.map(a => [a.id, a.sha256, a.status]), scientificOptions]));
@@ -400,11 +414,12 @@ export class AuditService {
       const registry = buildCompoundRegistry(documents, { nmrRecords: nmr.records, hrmsRecords: hrms.records, assets: currentAssets, decisions: p.compoundDecisions ?? [], requirements: p.requirements ?? null, spectrumReadings });
       const spectra = checkSpectrumReadings(spectrumReadings, registry, nmr.records, currentAssets, scientificOptions);
       const rank = i => ({ high: 0, medium: 1, low: 2 }[i.severity] ?? 3) * 10 + ({ data: 0, semantic: 1, alignment: 2, coverage: 3, format: 4 }[i.type] ?? 5);
-      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues, ...nmr.issues, ...duplicates.issues, ...registry.issues, ...experimental.issues, ...spectra.issues].sort((a, b) => rank(a) - rank(b));
-      const execution = { entryPoint: this.executionPath, recordedBy: 'entrypoint-declared; confirm native calls in host logs', ...(this.executionPath === 'harness_native_tools' && executionEvidence ? { toolName: 'paper_audit_run', toolCallId: typeof executionEvidence.toolCallId === 'string' ? executionEvidence.toolCallId : null } : {}) };
+      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues, ...nmr.issues, ...duplicates.issues, ...registry.issues, ...experimental.issues, ...spectra.issues, ...prose.issues, ...cross.issues].sort((a, b) => rank(a) - rank(b));
+      const execution = { entryPoint: this.executionPath, recordedBy: 'entrypoint-declared; confirm native calls in host logs', ...(this.executionPath === 'harness_native_tools' && executionEvidence ? { toolName: executionEvidence.toolName ?? 'paper_audit_run', toolCallId: typeof executionEvidence.toolCallId === 'string' ? executionEvidence.toolCallId : null } : {}) };
       const coverage = { ...result.coverage, hrms: hrms.coverage, imageTables: visualCoverage, stoichiometry: stoichiometry.coverage, semanticStatus: 'not_run', missingRoles: ['main', 'si'].filter(role => !documents.some(d => d.role === role)), documents: documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage })) };
       coverage.nmrFormula = nmr.coverage; coverage.imageDuplicates = duplicates.coverage;
       coverage.compounds = registry.coverage;
+      coverage.crossReferences = cross.coverage; coverage.experimentalProse = prose.coverage;
       coverage.experimentalMath = experimental.coverage; coverage.spectrumComparison = spectra.coverage;
       if (experimental.coverage.checked) coverage.completedChecks.push('explicit_experimental_numeric_recalculation');
       if (spectra.coverage.readings) coverage.completedChecks.push('spectrum_label_comparison');
@@ -419,6 +434,17 @@ export class AuditService {
       if (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked')) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
       if (visualCoverage.activeTables) { coverage.completedChecks.push('selected_image_table_ocr'); if (visualCoverage.provisionalTables || visualCoverage.staleTables.length || visualCoverage.failedTables.length) coverage.incompleteChecks.push('image_table_transcription_review'); }
       const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(p.profile), profileRevision: p.profileRevision, hrmsOptions: structuredClone(p.hrmsOptions ?? DEFAULT_HRMS), hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
+      run.crossReferences = cross; run.experimentalProseRecords = prose.records;
+      run.materialReadings = await this.getMaterialReadings({ projectId });
+      run.materialReadings = run.materialReadings.filter(r => documents.some(d => d.id === r.source.documentId && d.sha256 === r.source.sourceSha256));
+      coverage.materialOCR = { readings: run.materialReadings.length, failed: run.materialReadings.filter(r => r.status === "failed").length, provisional: run.materialReadings.filter(r => r.status !== "failed").length, note: "Provisional page/image text only; not automatic table, spectrum, structure or semantic verification." };
+      let ocrBudget = 2_000_000;
+      for (const r of run.materialReadings) {
+        const text = r.rawText.slice(0, Math.max(0, Math.min(200_000, ocrBudget))); ocrBudget -= text.length;
+        const truncated = text.length !== r.rawText.length;
+        documents.push({ id: 'ocrdoc-' + r.id, sourceKey: r.source.documentKey, name: `Material OCR ${r.id}`, role: 'source', format: 'material_ocr', sha256: r.source.rasterSha256, blocks: text ? [{ id: `${r.id}:text`, text, locator: r.source.locator, metadata: { evidenceOrigin: 'material_ocr', assetId: r.assetId, originalSourceSha256: r.source.sourceSha256, rasterSha256: r.source.rasterSha256, visualReviewStatus: 'needs_review' } }] : [], coverage: { status: text ? 'partial' : 'failed', totalUnits: 1, parsedUnits: text ? 1 : 0, truncated, warnings: ['Provisional OCR evidence only; not used automatically as numerical facts, tables, spectra or structures.', ...(truncated ? ['OCR evidence text truncated by snapshot budget; paged original words remain available.'] : [])] } });
+      }
+      coverage.documents = documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage }));
       run.nmrRecords = nmr.records; run.duplicateImageAssets = duplicates.assets;
       run.compoundRegistry = registry; run.scientificRevision = p.scientificRevision ?? 0;
       run.scientificOptions = scientificOptions;
@@ -426,14 +452,54 @@ export class AuditService {
       run.status = documents.some(d => d.coverage.status !== 'complete') || run.coverage.missingRoles.length || run.coverage.truncated ? 'partial' : 'completed_with_limited_scope';
       if (run.previousRunId) {
         const previous = await this.getRun({ projectId, runId: run.previousRunId });
+        run.revisionLedger = buildRevisionLedger(run, previous);
         const currentIDs = new Set(run.issues.map(i => i.id));
         run.changes = { currentIssues: run.issues.length, priorIssuesNotReproduced: previous.issues.filter(i => !currentIDs.has(i.id)).map(i => ({ id: i.id, title: i.title, state: 'needs_revalidation' })), note: 'Issue disappearance can reflect changed evidence or matching; it is not automatic closure.' };
       }
+      if (workflowSnapshot) run.workflow = structuredClone(workflowSnapshot);
+      run.revisionLedger ??= buildRevisionLedger(run, null);
       await atomic(path.join(this.dir(projectId), 'runs', `${run.id}.json`), run);
       p.runIds.push(run.id);
       p.duplicateProgress = { signature: imageSignature, runId: run.id, nextPairOffset: duplicates.coverage.nextPairOffset, totalEligiblePairs: duplicates.coverage.totalEligiblePairs, skipped: duplicates.coverage.skipped };
       await atomic(path.join(this.dir(projectId), 'project.json'), p);
       return { ...run, reviews: [] };
+    });
+  }
+  async workflow(args) { return workflowAction(this, args); }
+  async readMaterialImage({ projectId, assetId, signal }) {
+    return this.locked(projectId, async () => {
+      const p = await this.getProject(projectId), { asset } = await this.getVisualImage({ projectId, assetId });
+      const id = 'material-' + hash(JSON.stringify([asset.id, asset.sha256])).slice(0, 24);
+      const file = path.join(this.dir(projectId), 'materials', `${id}.json`);
+      let reading;
+      try { reading = await json(file); if (reading.status === 'failed') reading = null; } catch (e) { if (e.code !== 'ENOENT') throw e; }
+      if (!reading) {
+        const r = await recognizeImageTable({ imagePath: asset.path, outputDir: path.join(this.dir(projectId), 'materials', 'ocr'), tableId: id, mode: 'spectrum', signal });
+        signal?.throwIfAborted();
+        reading = { id, assetId, status: r.status, rawText: r.rawText ?? '', words: r.words ?? [], provider: r.provider, notes: r.notes, source: { documentId: asset.documentId, documentKey: asset.documentKey, sourceSha256: asset.sourceSha256, rasterSha256: asset.sha256, locator: asset.locator }, createdAt: new Date().toISOString(), interpretation: 'provisional_text_only_not_table_or_trace_validation' };
+        if (r.sourceSha256 !== asset.sha256) throw new Error('Material OCR source changed');
+        await atomic(file, reading);
+      }
+      p.materialReadingIds = [...new Set([...(p.materialReadingIds ?? []), id])];
+      await atomic(path.join(this.dir(projectId), 'project.json'), p); return reading;
+    });
+  }
+  async getMaterialReadings({ projectId }) {
+    const p = await this.getProject(projectId);
+    return Promise.all((p.materialReadingIds ?? []).map(id => json(path.join(this.dir(projectId), 'materials', `${safeID(id)}.json`))));
+  }
+  async revalidateIssue({ projectId, runId, trackingId, status, reason, citations }) {
+    return this.locked(projectId, async () => {
+      const run = await this.getRun({ projectId, runId });
+      const p = await this.getProject(projectId);
+      if (p.runIds.at(-1) !== run.id || run.profileChangedSinceRun || run.hrmsSettingsChangedSinceRun || run.scientificSettingsChangedSinceRun || run.imageTablesChangedSinceRun) throw new Error('Revalidate the latest run with current settings');
+      for (const d of run.documents.filter(d => !['image_table', 'material_ocr'].includes(d.format))) {
+        const source = p.documents.find(s => s.key === d.sourceKey || s.name === d.name && s.role === d.role);
+        if (!source || hash(await readFile(await this.sourcePath(p, source.filePath))) !== d.sha256) throw new Error('Source changed since audit; run again before revalidation');
+      }
+      const record = validateRevalidation(run, { trackingId, status, reason, citations });
+      const prior = await this.extras(projectId, 'revalidations', run.id);
+      await atomic(path.join(this.dir(projectId), 'revalidations', `${run.id}.json`), [...prior, record]); return record;
     });
   }
   async extras(projectId, type, runId) {
@@ -446,9 +512,10 @@ export class AuditService {
     const run = await json(path.join(this.dir(projectId), 'runs', `${safeID(selected)}.json`));
     const semantic = await this.extras(projectId, 'semantic', selected);
     const reviews = await this.extras(projectId, 'reviews', selected);
+    run.revisionLedger = applyRevalidations(run.revisionLedger, await this.extras(projectId, 'revalidations', selected));
     const signature = docs => docs.map(d => `${d.name}\0${d.role}\0${d.sha256}`).sort().join('\n');
     const issues = [...run.issues, ...semantic];
-    const physicalDocs = run.documents.filter(d => d.format !== 'image_table');
+    const physicalDocs = run.documents.filter(d => !['image_table', 'material_ocr'].includes(d.format));
     run.scientificSettingsChangedSinceRun = (p.scientificRevision ?? 0) !== (run.scientificRevision ?? 0);
     return { ...run, execution: run.execution ?? { entryPoint: 'legacy_unknown', recordedBy: 'not recorded in original run' }, issues, issueSummary: summarizeIssues(issues), reviews, coverage: { ...run.coverage, semanticStatus: semantic.length ? 'candidates_submitted_not_exhaustive' : 'not_run' }, profileChangedSinceRun: p.profileRevision !== run.profileRevision, hrmsSettingsChangedSinceRun: (p.hrmsRevision ?? 0) !== (run.hrmsRevision ?? 0), imageTablesChangedSinceRun: (p.visualRevision ?? 0) !== (run.visualRevision ?? 0), sourcesChangedSinceRun: signature(p.documents) !== signature(physicalDocs) };
   }
@@ -503,7 +570,12 @@ export class AuditService {
     if (!['md', 'json', 'csv'].includes(format)) throw new Error('Unknown report format');
     let content;
     if (format === 'json') content = JSON.stringify(run, null, 2);
-    else if (format === 'csv') content = [['id', 'type', 'severity', 'evidence_status', 'title', 'description', 'evidence', 'latest_review', 'reason', 'category', 'calculation_json', 'image_evidence_json', 'citations_json'], ...run.issues.map(i => { const r = run.reviews.filter(r => r.issueId === i.id).at(-1); return [i.id, i.type, i.severity, i.evidenceStatus, i.title, i.description, i.evidenceIds.join(';'), r?.status, r?.reason, i.category, i.calculation ? JSON.stringify(i.calculation) : '', i.imageEvidence ? JSON.stringify(i.imageEvidence) : '', i.citations ? JSON.stringify(i.citations) : '']; })].map(row => row.map(csv).join(',')).join('\r\n');
+    else if (format === 'csv') {
+      const ledger = run.revisionLedger?.items ?? [];
+      const rows = run.issues.map(i => { const r = run.reviews.filter(r => r.issueId === i.id).at(-1), t = ledger.find(t => t.currentIssueId === i.id); return [i.id, i.type, i.severity, i.evidenceStatus, i.title, i.description, i.evidenceIds.join(';'), r?.status, r?.reason, i.category, i.calculation ? JSON.stringify(i.calculation) : '', i.imageEvidence ? JSON.stringify(i.imageEvidence) : '', i.citations ? JSON.stringify(i.citations) : '', t?.id, t?.state, t?.originRunId]; });
+      for (const t of ledger.filter(t => !t.currentIssueId)) rows.push([t.originIssueId, 'revision', '', t.state, t.title, 'Historical issue tracked across revisions; disappearance is not closure.', t.currentCitations.map(c => c.blockId).join(';'), t.closure?.status, t.closure?.reason, 'revision', '', '', JSON.stringify(t.currentCitations), t.id, t.state, t.originRunId]);
+      content = [['id', 'type', 'severity', 'evidence_status', 'title', 'description', 'evidence', 'latest_review', 'reason', 'category', 'calculation_json', 'image_evidence_json', 'citations_json', 'tracking_id', 'revision_state', 'origin_run_id'], ...rows].map(row => row.map(csv).join(',')).join('\r\n');
+    }
     else content = renderMarkdown(run, this.evidenceFrom.bind(this));
     const file = path.join(this.dir(projectId), 'exports', `${run.id}-${randomUUID().slice(0, 8)}.${format}`);
     await mkdir(path.dirname(file), { recursive: true });

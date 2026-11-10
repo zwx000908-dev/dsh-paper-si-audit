@@ -47,3 +47,8 @@ automatic structure confirmation and automatic Word rewriting are not provided.
 18. Inspect compound dossiers and material status before completeness judgments. Automatic same-label links are candidates; record only explicit user association decisions. Requirements must be user selected with their stated provenance. See docs/SCIENTIFIC-WORKFLOW.md.
 19. Spectrum OCR reads explicit labels and annotations. Separately cited source captions can supply fields with fieldOrigins=document_caption; never call them image OCR. Keep missing/ambiguous readings and preserve original OCR when the user explicitly corrects it.
 20. For experimental calculations, quote original source fields, declare molar mass and stoichiometric factor, and distinguish standalone arithmetic from validated source attribution.
+
+
+## 0.5 工作流
+
+请求整篇覆盖时，调用 paper_audit_workflow start 并根据 nextAction 续跑；报告失败、未覆盖和 OCR 仅为候选文字。源或规则变更后建立新任务。用 cross_references 查看明确图表引用和受支持表格比较，用 experiments 查看实验原句、缺项与歧义。修订后运行并读取 revisions；只有用户明确给出新证据复核决定才调用 revalidate。问题消失不等于已修复，删除数据不得作为关闭依据。详细用法见 docs/WORKFLOW-0.5.md。
