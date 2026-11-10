@@ -398,7 +398,6 @@ export function registerAuditTools(ctx, service) {
 
 export async function apply(ctx, config) {
   const service = createRuntimeService(config);
-  await service.init();
   ctx.inject(['settings'], settingsCtx => {
     settingsCtx.effect(()=>settingsCtx.settings.configure({auto:false},ctx.fiber));
     new PaperSettingsController(settingsCtx);

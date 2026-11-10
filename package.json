@@ -1,6 +1,6 @@
 {
   "name": "dsh-paper-si-audit",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Evidence-grounded manuscript and supplementary information audit for DeepSeek Harness",
   "repository": {
     "type": "git",

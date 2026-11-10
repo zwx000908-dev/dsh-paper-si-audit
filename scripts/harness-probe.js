@@ -30,6 +30,16 @@ async function runProbe(ctx, config) {
     if (!result || result.isError) throw new Error(`${name}: ${result?.error?.message ?? 'missing canonical result'}`);
     return result.value;
   };
+  // Start with a stale path: both the native settings namespace and tools must
+  // register, then recover through a live configuration edit without restart.
+  let nativeSettings,form;
+  const formDeadline=Date.now()+15000;
+  while(Date.now()<formDeadline){nativeSettings=ctx.get('settings');form=nativeSettings?.describe().find(x=>x.ns==='paper-si-audit');if(form)break;await new Promise(resolve=>setTimeout(resolve,30));}
+  if(!form || !('defaults' in form.value) || !('allowedRoots' in form.value))throw new Error('Native settings form missing editable roots');
+  let rejectedPath=false;
+  try{await invoke('paper_audit_projects',{});}catch(e){if(!e.message.includes('设置 → 论文核对'))throw e;rejectedPath=true;}
+  if(!rejectedPath)throw new Error('Invalid startup directory did not produce a recoverable error');
+  await nativeSettings.mutate('paper-si-audit',[{op:'set',path:['allowedRoots'],value:[config.sourceDir]}],form.revision);
   const project = await invoke('paper_audit_create', { name: 'Synthetic native release smoke' });
   const initialSettings = await invoke('paper_audit_settings', {projectId:project.id});
   if(initialSettings.effective.scope!=='all')throw new Error('Native settings defaults missing');
@@ -37,10 +47,7 @@ async function runProbe(ctx, config) {
   const previewSettings = await invoke('paper_audit_settings', {projectId:project.id,settingsJson:JSON.stringify({scope:'si'})});
   if(previewSettings.effective.scope!=='si'||previewSettings.projectEffective.scope!=='all'||previewSettings.effective.report.includeImages!==false)throw new Error('Native settings precedence failed');
   await invoke('paper_audit_configure_settings', {projectId:project.id,reset:true});
-  let nativeSettings,form;
-  const formDeadline=Date.now()+15000;
-  while(Date.now()<formDeadline){nativeSettings=ctx.get('settings');form=nativeSettings?.describe().find(x=>x.ns==='paper-si-audit');if(form)break;await new Promise(resolve=>setTimeout(resolve,30));}
-  if(!form || !('defaults' in form.value) || !('allowedRoots' in form.value))throw new Error('Native settings form missing editable roots');
+  form=nativeSettings.describe().find(x=>x.ns==='paper-si-audit');
   await nativeSettings.mutate('paper-si-audit',[{op:'set',path:['defaults','scope'],value:'si'}],form.revision);
   const afterLive=await invoke('paper_audit_settings',{});
   if(afterLive.pluginDefaults.scope!=='si')throw new Error('Native UI write did not reach tools');
@@ -196,7 +203,7 @@ async function runProbe(ctx, config) {
     engineVersion: run.engineVersion, execution: run.execution,
     evidenceRead: true, reportExported: true, semanticStatus: run.coverage.semanticStatus,
     modelCalls: 0, syntheticDataOnly: true,
-    nativeSettingsFormChecked:true, nativeSettingsPersistenceChecked:true, liveConfigToolsChecked:true, visualAgentQueueChecked: true, visualDeliveryFailureChecked: true, visualFakeReceiptRejected: true, realVisionModelCalls: 0,
+    invalidDirectoryStartupRecoveryChecked:true, nativeSettingsFormChecked:true, nativeSettingsPersistenceChecked:true, liveConfigToolsChecked:true, visualAgentQueueChecked: true, visualDeliveryFailureChecked: true, visualFakeReceiptRejected: true, realVisionModelCalls: 0,
     imageTypePolicyChecked: true, commonCauseGroupsChecked: true, generalProcedureContextChecked: true, directMolarYieldChecked: true, standardMolarMassChecked: true,
     crossReferencesChecked: true, proseExtractionChecked: true, revisionRevalidationChecked: true, wholeProjectWorkflowChecked: true,
     exactMassCalculated: true, webPanelIncluded: false,

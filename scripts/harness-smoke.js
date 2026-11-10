@@ -58,7 +58,7 @@ await writeFile(overlay, stringify([
   { insert: [
     { id:'config-editor',name:'@deepseek-ai/dsh-config-editor' },
     { id:'settings',name:'@deepseek-ai/dsh-settings' },
-    { id: 'paper-si-audit', name: pathToFileURL(process.env.PAPER_AUDIT_PLUGIN_ENTRY || path.join(projectRoot, 'src', 'plugin.js')).href, config: { dataDir, allowedRoots: [sourceDir] } },
+    { id: 'paper-si-audit', name: pathToFileURL(process.env.PAPER_AUDIT_PLUGIN_ENTRY || path.join(projectRoot, 'src', 'plugin.js')).href, config: { dataDir, allowedRoots: [path.join(sourceDir,'missing-at-startup')] } },
     { id: 'paper-audit-smoke-probe', name: pathToFileURL(path.join(projectRoot, 'scripts', 'harness-probe.js')).href, config: { sourceDir } },
   ] },
 ]), 'utf8');

@@ -26,7 +26,7 @@
 
 兼容目标为 **DeepSeek Harness 0.2.2-rc.1**。使用源码或命令行时，需要 **Node.js 24.9.0 或以上**。
 
-目前，`main` 分支为 **0.10.0 开发版**，包含本页介绍的功能。安装命令：
+目前，`main` 分支为 **0.10.1 开发版**，包含本页介绍的功能。安装命令：
 
 ```powershell
 dsh plugin --profile paper-audit add "github:zwx000908-dev/dsh-paper-si-audit#main"

@@ -1,4 +1,11 @@
-# 0.6.0 (development)
+# Changelog
+
+## 0.10.1 — Directory editing and recoverable settings
+
+- Preserve newlines and spaces while editing allowed directories; normalize lines only on save. Keep rejected edits available for correction.
+- Validate source directories and the output location before persisting settings, without creating folders during validation.
+- Keep native settings and tools registered when an old directory becomes unavailable. Report the path error on use and recover after a live configuration correction.
+- Add input/save regression checks and exercise invalid-directory startup recovery in the exact Harness smoke test.
 
 
 ## 0.10.0 — Visible native settings and multimodal-first image review

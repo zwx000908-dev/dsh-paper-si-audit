@@ -1,5 +1,5 @@
 import {Remote,TypertRemoteService,RemoteError} from '@deepseek-ai/dsh-typert-protocol';
-import {validateRuntimeConfig} from './runtime-settings.js';
+import {validateRuntimeConfig,validateRuntimePaths} from './runtime-settings.js';
 const initializers=[];
 export class PaperSettingsController extends TypertRemoteService {
  constructor(ctx){super(ctx,'paperAuditSettings');for(const init of initializers)init.call(this);}
@@ -8,6 +8,7 @@ export class PaperSettingsController extends TypertRemoteService {
   try{
    if(!Number.isInteger(expectedRevision))throw new Error('请先读取最新设置再保存');
    const parsed=validateRuntimeConfig(section);
+   await validateRuntimePaths(parsed);
    await this.ctx.settings.mutate('paper-si-audit',Object.entries(parsed).map(([key,value])=>({op:'set',path:[key],value})),expectedRevision);
    return {saved:true};
   }catch(e){throw new RemoteError('paper-settings/rejected',e.message,{});}
