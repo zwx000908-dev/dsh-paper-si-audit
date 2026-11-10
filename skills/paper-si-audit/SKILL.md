@@ -35,6 +35,8 @@ host has not separately indexed this skill file.
 13. Exact-mass calculations must declare formula basis (neutral formula versus already charged ion composition), isotope convention, adduct and charge. If source wording is ambiguous, retain alternatives; do not select whichever is nearest a reported calcd/found number. Do not add a proton twice. Calculation does not prove structural identity.
 14. Configure ppm/mDa alert thresholds as explicit software/user settings, never invented journal requirements. Show recomputed values and deviations while retaining originals and unresolved formula assumptions.
 15. Export a report on request. Original source files remain read-only.
+16. NMR-formula checks run automatically on associated textual records. Inspect `coverage.nmrFormula` and `nmr_formula` issues, including insufficient integration/association and ambiguous ion formulas. 13C signal equality is not required; a compatible count does not confirm a structure. Image-only spectra are not automatically peak-picked.
+17. For image duplication requests, call `paper_audit_prepare_image_audit` for each selected source and follow `nextOffset`; then run the audit again. The limit is 200 active assets per run. Inspect `coverage.imageDuplicates`, including unread, stale, failed and truncated material. PDF whole-page comparisons do not cover isolated panels; import panel images when needed. Read both imageEvidence asset IDs with the visual-image tool. Similarity scores are heuristic distances, not probabilities or misconduct findings.
 
 This release has no web review panel or local HTTP server. It runs foreground
 native tools and an optional CLI. It does not independently call a model endpoint;

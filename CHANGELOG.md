@@ -1,3 +1,9 @@
+# 0.3.0 (development)
+
+- Add evidence-linked textual NMR/formula count screening.
+- Add registered-image exact and transformed-similarity screening, repeated DOCX placements, paged preparation and coverage.
+- Preserve the DeepSeek Harness 0.2.2-rc.1 target and the published v0.2.0 release.
+
 # 更新记录
 
 ## 0.2.0 — 2026-11-09

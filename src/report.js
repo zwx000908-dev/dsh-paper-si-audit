@@ -22,6 +22,11 @@ export function renderMarkdown(run, evidenceFrom) {
       if (issue.suggestion) lines.push('建议：' + (typeof issue.suggestion === 'string' ? issue.suggestion : JSON.stringify(issue.suggestion)), '');
     } else for (const [label, value] of [['复算', issue.calculation], ['建议', issue.suggestion]]) if (value) lines.push(`${label}：${typeof value === 'string' ? value : JSON.stringify(value)}`, '');
     const used = new Set();
+    for (const image of issue.imageEvidence ?? []) {
+      lines.push(`图像证据：${line(image.name)} · ${line(image.locator?.label)} · ${image.assetId}`, '', `来源 SHA256：${image.sourceSha256}；图像 SHA256：${image.rasterSha256}`, '');
+      if (image.path) lines.push(`[打开原图](<${image.path.replaceAll('\\', '/')}>)`, '');
+      if (image.locations?.length > 1) lines.push('出现位置：' + image.locations.map(l => `XML ¶${l.paragraph} (${l.part})`).join('；'), '');
+    }
     for (const evidenceId of issue.evidenceIds) {
       try {
         const e = evidenceFrom(run, evidenceId);

@@ -9,6 +9,8 @@ import { renderMarkdown, summarizeIssues } from './report.js';
 import { VERSION, HOST_TARGET } from './version.js';
 import { inspectVisuals, readImageTable as recognizeImageTable } from './image-tables.js';
 import { checkHrms } from './hrms.js';
+import { checkNmr } from './nmr.js';
+import { checkImageDuplicates } from './image-duplicates.js';
 
 const ID = /^[a-zA-Z0-9_-]{1,100}$/;
 const STATES = new Set(['confirmed', 'reasonable_difference', 'extraction_error', 'insufficient', 'fixed_pending_recheck']);
@@ -148,7 +150,8 @@ export class AuditService {
       const result = await inspectVisuals({ filePath, documentId, outputDir, selection, signal });
       if (result.sourceSha256 !== originalHash) throw new Error('Source changed during visual extraction');
       const ready = new Map(result.assets.map(a => [a.id, a]));
-      const candidates = new Map([...(result.candidates ?? []), ...result.assets].map(a => [a.id, a]));
+      const candidates = new Map((result.candidates ?? []).map(a => [a.id, a]));
+      for (const asset of result.assets) candidates.set(asset.id, { ...candidates.get(asset.id), ...asset });
       const assets = [];
       for (const candidate of candidates.values()) {
         const raw = ready.get(candidate.id) ?? candidate;
@@ -167,18 +170,32 @@ export class AuditService {
       }
       p.visualAssets ??= [];
       p.activeVisuals ??= {};
+      let visualChanged = false;
       for (const asset of assets) {
         const prior = p.visualAssets.find(a => a.id === p.activeVisuals[asset.originKey]);
         if (prior?.status === 'ready' && asset.status === 'unread') continue;
+        if (prior?.id !== asset.id || prior?.status !== asset.status) visualChanged = true;
         p.visualAssets = p.visualAssets.filter(a => a.id !== asset.id); p.visualAssets.push(asset); p.activeVisuals[asset.originKey] = asset.id;
       }
       await atomic(path.join(this.dir(projectId), 'project.json'), p);
+      if (visualChanged) { p.visualRevision = (p.visualRevision ?? 0) + 1; await atomic(path.join(this.dir(projectId), 'project.json'), p); }
       return { source: { key: source.key, name: source.name, role: source.role, documentId, sha256: originalHash }, assets, coverage: result.coverage };
     });
   }
   async listVisuals({ projectId }) {
     const p = await this.getProject(projectId), assets = (p.visualAssets ?? []).map(a => ({ ...a, active: !p.activeVisuals || p.activeVisuals[a.originKey] === a.id }));
     return { assets, coverage: { inventoried: assets.length, ready: assets.filter(a => a.status === 'ready').length, failed: assets.filter(a => a.status === 'failed').length, note: 'Prepared images are not yet verified tables; unselected figures and spectra are not read.' } };
+  }
+  async prepareImageAudit({ projectId, documentKey, offset = 0, limit = 10, signal }) {
+    if (!Number.isInteger(offset) || offset < 0 || !Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error('Image preparation requires offset >= 0 and limit 1–10');
+    const inventory = await this.prepareVisuals({ projectId, documentKey, signal });
+    const selected = inventory.assets.slice(offset, offset + limit);
+    let result = inventory;
+    if (selected.length) {
+      const pages = selected.map(a => a.locator?.page).filter(Boolean), parts = selected.map(a => a.locator?.part).filter(Boolean);
+      result = await this.prepareVisuals({ projectId, documentKey, selection: { ...(pages.length ? { pages } : {}), ...(parts.length ? { parts } : {}) }, signal });
+    }
+    return { source: result.source, selectedAssets: result.assets.filter(a => selected.some(s => s.originKey === a.originKey)), offset, limit, total: inventory.assets.length, nextOffset: offset + limit < inventory.assets.length ? offset + limit : null, note: 'Follow nextOffset for every requested source, then run paper_audit_run to compare prepared images. PDF extraction compares whole pages; use standalone panel images for panel-level comparison.' };
   }
   async getVisualImage({ projectId, assetId }) {
     const p = await this.getProject(projectId), asset = (p.visualAssets ?? []).find(a => a.id === assetId);
@@ -266,16 +283,28 @@ export class AuditService {
       const result = auditDocuments(documents, p.profile);
       const stoichiometry = checkStoichiometry(documents);
       const hrms = checkHrms(documents, p.hrmsOptions ?? DEFAULT_HRMS);
+      const nmr = checkNmr(documents, hrms.records);
+      const activeAssets = (p.visualAssets ?? []).filter(a => !p.activeVisuals || p.activeVisuals[a.originKey] === a.id);
+      const currentAssets = activeAssets.filter(a => documents.some(d => d.id === a.documentId && d.sha256 === a.sourceSha256));
+      const duplicates = await checkImageDuplicates(currentAssets, async asset => (await this.getVisualImage({ projectId, assetId: asset.id })).data);
+      duplicates.coverage.staleAssets = activeAssets.filter(a => !currentAssets.includes(a)).map(a => a.id);
+      duplicates.coverage.uninventoriedDocuments = documents.filter(d => ['pdf', 'docx', 'png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'webp'].includes(d.format) && !currentAssets.some(a => a.documentId === d.id)).map(d => ({ id: d.id, name: d.name }));
       const rank = i => ({ high: 0, medium: 1, low: 2 }[i.severity] ?? 3) * 10 + ({ data: 0, semantic: 1, alignment: 2, coverage: 3, format: 4 }[i.type] ?? 5);
-      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues].sort((a, b) => rank(a) - rank(b));
+      const issues = [...result.issues, ...stoichiometry.issues, ...hrms.issues, ...nmr.issues, ...duplicates.issues].sort((a, b) => rank(a) - rank(b));
       const execution = { entryPoint: this.executionPath, recordedBy: 'entrypoint-declared; confirm native calls in host logs', ...(this.executionPath === 'harness_native_tools' && executionEvidence ? { toolName: 'paper_audit_run', toolCallId: typeof executionEvidence.toolCallId === 'string' ? executionEvidence.toolCallId : null } : {}) };
       const coverage = { ...result.coverage, hrms: hrms.coverage, imageTables: visualCoverage, stoichiometry: stoichiometry.coverage, semanticStatus: 'not_run', missingRoles: ['main', 'si'].filter(role => !documents.some(d => d.role === role)), documents: documents.map(d => ({ id: d.id, name: d.name, role: d.role, ...d.coverage })) };
+      coverage.nmrFormula = nmr.coverage; coverage.imageDuplicates = duplicates.coverage;
+      if (nmr.coverage.comparedRecords) coverage.completedChecks.push('reported_nmr_formula_count_comparison');
+      if (nmr.coverage.insufficientRecords || nmr.coverage.ambiguousRecords) coverage.incompleteChecks.push('nmr_formula_association_or_count');
+      if (duplicates.coverage.checkedAssets) coverage.completedChecks.push('prepared_image_duplicate_comparison');
+      if (duplicates.coverage.uninventoriedDocuments.length || duplicates.coverage.skipped.length || duplicates.coverage.staleAssets.length || duplicates.coverage.truncatedAssets) coverage.incompleteChecks.push('image_duplicate_source_coverage');
       if (hrms.coverage.calculatedRecords + hrms.coverage.ambiguousRecords > 0) { coverage.notPerformed = coverage.notPerformed.filter(s => !s.includes('HRMS 分子式精确质量复算')); coverage.completedChecks.push('hrms_conditional_exact_mass_recalculation'); }
       if (hrms.coverage.ambiguousRecords) coverage.incompleteChecks.push('hrms_formula_basis_confirmation');
       if (hrms.coverage.unsupportedRecords) coverage.incompleteChecks.push('hrms_expression_coverage');
       if (hrms.coverage.foundUnreadableRecords || hrms.coverage.foundNotReportedRecords || hrms.records.some(r => r.status !== 'unsupported' && r.foundCheckStatus !== 'checked')) coverage.incompleteChecks.push('hrms_observed_mass_coverage');
       if (visualCoverage.activeTables) { coverage.completedChecks.push('selected_image_table_ocr'); if (visualCoverage.provisionalTables || visualCoverage.staleTables.length || visualCoverage.failedTables.length) coverage.incompleteChecks.push('image_table_transcription_review'); }
       const run = { id: randomUUID(), projectId, createdAt: new Date().toISOString(), engineVersion: VERSION, hostTarget: HOST_TARGET, execution, profile: structuredClone(p.profile), profileRevision: p.profileRevision, hrmsOptions: structuredClone(p.hrmsOptions ?? DEFAULT_HRMS), hrmsRevision: p.hrmsRevision ?? 0, hrmsRecords: hrms.records, visualRevision: p.visualRevision ?? 0, imageTables, documents, facts: result.facts, issues, issueSummary: summarizeIssues(issues), coverage, previousRunId: p.runIds.at(-1) ?? null };
+      run.nmrRecords = nmr.records; run.duplicateImageAssets = duplicates.assets;
       run.status = documents.some(d => d.coverage.status !== 'complete') || run.coverage.missingRoles.length || run.coverage.truncated ? 'partial' : 'completed_with_limited_scope';
       if (run.previousRunId) {
         const previous = await this.getRun({ projectId, runId: run.previousRunId });
@@ -354,7 +383,7 @@ export class AuditService {
     if (!['md', 'json', 'csv'].includes(format)) throw new Error('Unknown report format');
     let content;
     if (format === 'json') content = JSON.stringify(run, null, 2);
-    else if (format === 'csv') content = [['id', 'type', 'severity', 'evidence_status', 'title', 'description', 'evidence', 'latest_review', 'reason'], ...run.issues.map(i => { const r = run.reviews.filter(r => r.issueId === i.id).at(-1); return [i.id, i.type, i.severity, i.evidenceStatus, i.title, i.description, i.evidenceIds.join(';'), r?.status, r?.reason]; })].map(row => row.map(csv).join(',')).join('\r\n');
+    else if (format === 'csv') content = [['id', 'type', 'severity', 'evidence_status', 'title', 'description', 'evidence', 'latest_review', 'reason', 'category', 'calculation_json', 'image_evidence_json', 'citations_json'], ...run.issues.map(i => { const r = run.reviews.filter(r => r.issueId === i.id).at(-1); return [i.id, i.type, i.severity, i.evidenceStatus, i.title, i.description, i.evidenceIds.join(';'), r?.status, r?.reason, i.category, i.calculation ? JSON.stringify(i.calculation) : '', i.imageEvidence ? JSON.stringify(i.imageEvidence) : '', i.citations ? JSON.stringify(i.citations) : '']; })].map(row => row.map(csv).join(',')).join('\r\n');
     else content = renderMarkdown(run, this.evidenceFrom.bind(this));
     const file = path.join(this.dir(projectId), 'exports', `${run.id}-${randomUUID().slice(0, 8)}.${format}`);
     await mkdir(path.dirname(file), { recursive: true });

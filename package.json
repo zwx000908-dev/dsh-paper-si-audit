@@ -1,6 +1,6 @@
 {
   "name": "dsh-paper-si-audit",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Evidence-grounded manuscript and supplementary information audit for DeepSeek Harness",
   "repository": {
     "type": "git",
@@ -16,7 +16,9 @@
     "manuscript",
     "supplementary-information",
     "hrms",
-    "ocr"
+    "ocr",
+    "nmr",
+    "image-duplicates"
   ],
   "type": "module",
   "main": "src/plugin.js",
@@ -53,7 +55,7 @@
   "scripts": {
     "test": "node --test tests/*.test.js",
     "demo": "node scripts/demo.js",
-    "check": "node --check src/service.js && node --check src/plugin.js && node --check src/image-tables.js && node --check src/hrms.js",
+    "check": "node --check src/service.js && node --check src/plugin.js && node --check src/image-tables.js && node --check src/hrms.js && node --check src/nmr.js && node --check src/image-duplicates.js",
     "test:harness": "node scripts/harness-smoke.js",
     "doctor": "node scripts/doctor-harness.js",
     "pack:verify": "node scripts/pack-release.js"
